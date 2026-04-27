@@ -4,6 +4,8 @@ import com.cts.claimbridge.dto.*;
 import com.cts.claimbridge.entity.*;
 import com.cts.claimbridge.repository.*;
 import com.cts.claimbridge.util.InvestigationStatus;
+import jakarta.persistence.EntityNotFoundException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
@@ -14,6 +16,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class AdjusterService {
 
     @Autowired
@@ -38,7 +41,7 @@ public class AdjusterService {
 
         if(adjuster.isEmpty())
         {
-             throw new RuntimeException("No Adjuster Found");
+             return null;
         }
 
         List<ClaimFullResponseDTO> resultList = decisions.stream()
@@ -74,19 +77,32 @@ public class AdjusterService {
     }
 
     public ClaimFullResponseDTO getAssignedClaimsById(String adjusterId, Long claimId) {
-        boolean assigned = triageRepo.existsByAssignedToAndClaim_ClaimId(adjusterId, claimId);
-//        if (!assigned) {
-//            throw new RuntimeException("This claim is NOT assigned to this adjuster");
-//        }
+
+        log.info("Fetching claimId: {} for adjusterId: {}", claimId, adjusterId);
+
+        Optional<User> adjuster = userRepository.findByRoleCode(adjusterId);
+        if(adjuster.isEmpty()) {
+            log.warn("Adjuster not found with adjusterId: {}", adjusterId);
+            throw new EntityNotFoundException("Adjuster not found with ID: " + adjusterId);
+        }
+
+        boolean assigned = triageRepo.existsByAssignedToAndClaimId(adjusterId, claimId);
+        if (!assigned) {
+            log.warn("ClaimId: {} is NOT assigned to adjusterId: {}", claimId, adjusterId);
+            throw new EntityNotFoundException("This claim is NOT assigned to this adjuster");
+        }
 
         Optional<Claim> claim = claimRepo.findById(claimId);
         if(claim.isEmpty()){
+            log.warn("No claim found with claimId: {}", claimId);
             return null;
         }
-                //.orElseThrow(() -> new RuntimeException("Claim not found"));
 
         Investigation investigation = investigationRepo.findByClaim_ClaimId(claimId)
-                .orElseGet(() -> createInvestigation(claim.orElse(null)));
+                .orElseGet(() -> {
+                    log.info("No investigation found, creating new one for claimId: {}", claimId);
+                    return createInvestigation(claim.orElse(null));
+                });
 
         investigation.setStatus(InvestigationStatus.OPEN);
         investigationRepo.save(investigation);
@@ -95,6 +111,7 @@ public class AdjusterService {
         PolicyHolder holder = policyHolderRepo.findByPolicy_PolicyId(claim.get().getPolicy().getPolicyId());
         List<Evidence> evidences = evidenceRepo.findByClaim_ClaimId(claimId);
 
+        log.info("Successfully mapped full response for claimId: {}", claimId);
         return mapToFullDTO(claim.orElse(null), investigation, policy, holder, evidences);
     }
 

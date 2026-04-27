@@ -3,6 +3,7 @@ package com.cts.claimbridge.controller;
 import com.cts.claimbridge.dto.MessageDTO;
 import com.cts.claimbridge.dto.ResponseDTO;
 import com.cts.claimbridge.entity.Communication;
+import com.cts.claimbridge.entity.Notification;
 import com.cts.claimbridge.service.CommunicationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
