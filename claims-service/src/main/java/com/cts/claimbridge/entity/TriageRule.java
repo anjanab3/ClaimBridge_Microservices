@@ -32,4 +32,5 @@ public class TriageRule {
     @JsonBackReference(value = "rule")
     private  List<TriageDecision> decisionList;
 
+
 }

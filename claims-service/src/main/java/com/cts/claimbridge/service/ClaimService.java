@@ -1,14 +1,13 @@
 package com.cts.claimbridge.service;
 
+import com.cts.claimbridge.client.PolicyServiceClient;
 import com.cts.claimbridge.dto.ClaimStatusDTO;
-import com.cts.claimbridge.dto.TriageDecisionRequestDTO;
+import com.cts.claimbridge.dto.PolicyDTO;
 import com.cts.claimbridge.dto.TriageRequestDTO;
-import com.cts.claimbridge.entity.*;
-import com.cts.claimbridge.repository.*;
+import com.cts.claimbridge.entity.Claim;
+import com.cts.claimbridge.repository.ClaimRepository;
+import com.cts.claimbridge.repository.EvidenceRepository;
 import com.cts.claimbridge.util.ClaimStatus;
-import com.cts.claimbridge.util.PaymentStatus;
-import com.cts.claimbridge.util.Status;
-import com.cts.claimbridge.util.TriageStatus;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,10 +16,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -28,45 +24,30 @@ import java.util.Optional;
 public class ClaimService {
 
     @Autowired
-    private  ClaimRepository claimRepository;
-    @Autowired
-    private PolicyRepository policyRepository;
+    private ClaimRepository claimRepository;
     @Autowired
     private NotificationService notificationService;
     @Autowired
     private EvidenceRepository evidenceRepository;
     @Autowired
     private FraudScoringService fraudScoringService;
-    // @Autowired
-    // private ReportingService reportingService;
+    @Autowired
+    private PolicyServiceClient policyServiceClient;
 
-    public Claim save(Claim claim ,long policyId , long holderId) {
+    public Claim save(Claim claim, long policyId, long holderId) {
+        PolicyDTO policy = fetchPolicy(policyId);
+        if (policy == null) {
+            throw new RuntimeException("Policy not found with ID: " + policyId);
+        }
 
-        Policy policy = policyRepository.findById(policyId).orElseThrow(() -> new RuntimeException("Policy Not found"));
-        claim.setPolicy(policy);
-//        SLA sla=slaRepository
-//                .findByMonitoredEntityAndActiveTrue("CLAIM")
-//                .orElseThrow(()->new RuntimeException("SLA Not configures"));
-//        claim.setSla(sla);
+        claim.setPolicyId(policyId);
+        Claim savedClaim = claimRepository.save(claim);
 
-        //set created date
-//        claim.setCreatedDate(LocalDateTime.now());
-//
-//        //calculate response due date
-//        claim.setResponseDueDate(
-//                claim.getCreatedDate().plusHours(sla.getResponseHours())
-//        );
-//        //calculate resolution due date
-//        claim.setResolutionDueDate(
-//                claim.getCreatedDate().plusHours(sla.getResolutionHours())
-//        );
-        //save claim
-        Claim savedClaim= claimRepository.save(claim);
-        // auto-generate fraud score immediately after submission
         fraudScoringService.scoreAndPersist(savedClaim);
-        //notificate as claim created
+
         notificationService.sendNotification(
-                holderId,savedClaim.getClaimId(),
+                holderId,
+                savedClaim.getClaimId(),
                 "Your claim has been successfully submitted",
                 "Intake"
         );
@@ -77,35 +58,31 @@ public class ClaimService {
     public Claim updateClaimStatus(Long claimId, ClaimStatus status) {
         Claim claim = claimRepository.findById(claimId)
                 .orElseThrow(() -> new RuntimeException("Claim Not Found"));
-        String oldStatus = claim.getStatus() != null ? claim.getStatus().name() : "NONE";
+
         claim.setStatus(status);
         Claim updatedClaim = claimRepository.save(claim);
 
-        // auto-store report on status change
-        Map<String, Object> params = new LinkedHashMap<>();
-        params.put("claimId", claimId);
-        params.put("oldStatus", oldStatus);
-        params.put("newStatus", status.name());
-        params.put("changedAt", LocalDateTime.now().toString());
-       // reportingService.recordEvent("CLAIM_STATUS_CHANGE", params);
+        Long holderId = getHolderIdFromPolicy(claim.getPolicyId());
+        if (holderId != null) {
+            notificationService.sendNotification(
+                    holderId,
+                    claimId,
+                    "Your claim status has been updated to " + status,
+                    "CLAIM"
+            );
+        }
 
-        // Send Notification after status update
-        Long holderId = claim.getPolicy().getHolder().getHolderId();
-        notificationService.sendNotification(
-                holderId,
-                claimId,
-                "Your claim status has been updated to " + status,
-                "CLAIM"
-        );
         return updatedClaim;
     }
 
     public List<Claim> findByHolder(Long holderId) {
-        return claimRepository.findByPolicy_Holder_HolderId(holderId);
+        List<Long> policyIds = fetchPolicyIdsByHolder(holderId);
+        if (policyIds.isEmpty()) return List.of();
+        return claimRepository.findByPolicyIdIn(policyIds);
     }
 
-    public Page<Claim> findAllClaims(int page , int size) {
-        Pageable pageable = PageRequest.of(page , size);
+    public Page<Claim> findAllClaims(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
         return claimRepository.findAll(pageable);
     }
 
@@ -141,26 +118,15 @@ public class ClaimService {
         Claim claim = claimRepository.findById(claimId)
                 .orElseThrow(() -> new RuntimeException("Claim not found with ID: " + claimId));
 
-        String oldStatus = claim.getStatus() != null ? claim.getStatus().name() : "NONE";
         claim.setStatus(newStatus);
-        Claim saved = claimRepository.save(claim);
-
-        // auto-store report on validation status change
-        Map<String, Object> params = new LinkedHashMap<>();
-        params.put("claimId", claimId);
-        params.put("oldStatus", oldStatus);
-        params.put("newStatus", newStatus.name());
-        params.put("changedAt", LocalDateTime.now().toString());
-        //reportingService.recordEvent("CLAIM_STATUS_CHANGE", params);
-
-        return saved;
+        return claimRepository.save(claim);
     }
 
     @Transactional
     public Claim triageClaim(Long claimId, TriageRequestDTO triageRequest) {
         Claim claim = claimRepository.findById(claimId)
                 .orElseThrow(() -> new RuntimeException("Claim not found with ID: " + claimId));
-        String oldStatus = claim.getStatus() != null ? claim.getStatus().name() : "NONE";
+
         if (triageRequest.getStatus() != null) {
             claim.setStatus(ClaimStatus.valueOf(triageRequest.getStatus().name()));
         }
@@ -168,34 +134,14 @@ public class ClaimService {
             claim.setStatus(ClaimStatus.IN_REVIEW);
         }
 
-        Claim saved = claimRepository.save(claim);
-
-        // auto-store report on triage status change
-        Map<String, Object> params = new LinkedHashMap<>();
-        params.put("claimId", claimId);
-        params.put("oldStatus", oldStatus);
-        params.put("newStatus", saved.getStatus() != null ? saved.getStatus().name() : "NONE");
-        params.put("changedAt", LocalDateTime.now().toString());
-        //reportingService.recordEvent("CLAIM_STATUS_CHANGE", params);
-
-        return saved;
+        return claimRepository.save(claim);
     }
 
     public Claim updateStatus(Long claimId, ClaimStatus status) {
-        Claim claim = claimRepository.findById(claimId).orElseThrow(() -> new RuntimeException("Claim not found with id: " + claimId));
-        String oldStatus = claim.getStatus() != null ? claim.getStatus().name() : "NONE";
+        Claim claim = claimRepository.findById(claimId)
+                .orElseThrow(() -> new RuntimeException("Claim not found with id: " + claimId));
         claim.setStatus(status);
-        Claim saved = claimRepository.save(claim);
-
-        // auto-store report on status change
-        Map<String, Object> params = new LinkedHashMap<>();
-        params.put("claimId", claimId);
-        params.put("oldStatus", oldStatus);
-        params.put("newStatus", status.name());
-        params.put("changedAt", LocalDateTime.now().toString());
-        //reportingService.recordEvent("CLAIM_STATUS_CHANGE", params);
-
-        return saved;
+        return claimRepository.save(claim);
     }
 
     public Page<Claim> findByStatus(ClaimStatus status, int page, int size) {
@@ -203,4 +149,27 @@ public class ClaimService {
         return claimRepository.findByStatus(status, pageable);
     }
 
+    // ── helpers ───────────────────────────────────────────────────────────────
+
+    private PolicyDTO fetchPolicy(Long policyId) {
+        try {
+            if (policyId == null) return null;
+            return policyServiceClient.getPolicyById(policyId);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Long getHolderIdFromPolicy(Long policyId) {
+        PolicyDTO policy = fetchPolicy(policyId);
+        return policy != null ? policy.getHolderId() : null;
+    }
+
+    private List<Long> fetchPolicyIdsByHolder(Long holderId) {
+        try {
+            return policyServiceClient.getPolicyIdsByHolderId(holderId);
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
 }

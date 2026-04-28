@@ -1,11 +1,10 @@
 package com.cts.claimbridge.service;
 
+import com.cts.claimbridge.client.PolicyServiceClient;
 import com.cts.claimbridge.dto.*;
 import com.cts.claimbridge.entity.*;
 import com.cts.claimbridge.repository.*;
 import com.cts.claimbridge.util.InvestigationStatus;
-import jakarta.persistence.EntityNotFoundException;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
@@ -16,7 +15,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
-@Slf4j
 public class AdjusterService {
 
     @Autowired
@@ -26,22 +24,18 @@ public class AdjusterService {
     @Autowired
     private InvestigationRepository investigationRepo;
     @Autowired
-    private PolicyRepository policyRepo;
-    @Autowired
-    private PolicyHolderRepository policyHolderRepo;
-    @Autowired
     private EvidenceRepository evidenceRepo;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private PolicyServiceClient policyServiceClient;
 
     public Page<ClaimFullResponseDTO> getAssignedClaims(String adjusterId, int page, int size) {
         List<TriageDecision> decisions = triageRepo.findByAssignedTo(adjusterId);
 
         Optional<User> adjuster = userRepository.findByRoleCode(adjusterId);
-
-        if(adjuster.isEmpty())
-        {
-             return null;
+        if (adjuster.isEmpty()) {
+            throw new RuntimeException("No Adjuster Found");
         }
 
         List<ClaimFullResponseDTO> resultList = decisions.stream()
@@ -56,15 +50,16 @@ public class AdjusterService {
                     investigation.setStatus(InvestigationStatus.OPEN);
                     investigationRepo.save(investigation);
 
-                    Policy policy = policyRepo.findById(claim.getPolicy().getPolicyId()).orElse(null);
-                    PolicyHolder holder = policyHolderRepo.findByPolicy_PolicyId(claim.getPolicy().getPolicyId());
+                    Long policyId = claim.getPolicyId();
+                    PolicyDTO policy = fetchPolicy(policyId);
+                    PolicyHolderDTO holder = fetchPolicyHolder(policy != null ? policy.getHolderId() : null);
+                    System.out.println("Fetched holder: " + holder); 
                     List<Evidence> evidences = evidenceRepo.findByClaim_ClaimId(claim.getClaimId());
 
                     return mapToFullDTO(claim, investigation, policy, holder, evidences);
                 })
                 .collect(Collectors.toList());
 
-        // Manual pagination on the in-memory list
         Pageable pageable = PageRequest.of(page, size);
         int start = (int) pageable.getOffset();
         int end = Math.min(start + size, resultList.size());
@@ -77,42 +72,42 @@ public class AdjusterService {
     }
 
     public ClaimFullResponseDTO getAssignedClaimsById(String adjusterId, Long claimId) {
-
-        log.info("Fetching claimId: {} for adjusterId: {}", claimId, adjusterId);
-
-        Optional<User> adjuster = userRepository.findByRoleCode(adjusterId);
-        if(adjuster.isEmpty()) {
-            log.warn("Adjuster not found with adjusterId: {}", adjusterId);
-            throw new EntityNotFoundException("Adjuster not found with ID: " + adjusterId);
-        }
-
-        boolean assigned = triageRepo.existsByAssignedToAndClaimId(adjusterId, claimId);
-        if (!assigned) {
-            log.warn("ClaimId: {} is NOT assigned to adjusterId: {}", claimId, adjusterId);
-            throw new EntityNotFoundException("This claim is NOT assigned to this adjuster");
-        }
-
-        Optional<Claim> claim = claimRepo.findById(claimId);
-        if(claim.isEmpty()){
-            log.warn("No claim found with claimId: {}", claimId);
+        Optional<Claim> claimOpt = claimRepo.findById(claimId);
+        if (claimOpt.isEmpty()) {
             return null;
         }
 
+        Claim claim = claimOpt.get();
+
         Investigation investigation = investigationRepo.findByClaim_ClaimId(claimId)
-                .orElseGet(() -> {
-                    log.info("No investigation found, creating new one for claimId: {}", claimId);
-                    return createInvestigation(claim.orElse(null));
-                });
+                .orElseGet(() -> createInvestigation(claim));
 
         investigation.setStatus(InvestigationStatus.OPEN);
         investigationRepo.save(investigation);
 
-        Policy policy = policyRepo.findById(claim.get().getPolicy().getPolicyId()).orElse(null);
-        PolicyHolder holder = policyHolderRepo.findByPolicy_PolicyId(claim.get().getPolicy().getPolicyId());
+        Long policyId = claim.getPolicyId();
+        PolicyDTO policy = fetchPolicy(policyId);
+        PolicyHolderDTO holder = fetchPolicyHolder(policy != null ? policy.getHolderId() : null);
         List<Evidence> evidences = evidenceRepo.findByClaim_ClaimId(claimId);
 
-        log.info("Successfully mapped full response for claimId: {}", claimId);
-        return mapToFullDTO(claim.orElse(null), investigation, policy, holder, evidences);
+        return mapToFullDTO(claim, investigation, policy, holder, evidences);
+    }
+
+    private PolicyDTO fetchPolicy(Long policyId) {
+        try {
+            return policyServiceClient.getPolicyById(policyId);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private PolicyHolderDTO fetchPolicyHolder(Long holderId) {
+        try {
+            if (holderId == null) return null;
+            return policyServiceClient.getPolicyHolderById(holderId);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private Investigation createInvestigation(Claim claim) {
@@ -124,19 +119,19 @@ public class AdjusterService {
     }
 
     private ClaimFullResponseDTO mapToFullDTO(Claim claim, Investigation investigation,
-                                              Policy policy, PolicyHolder holder,
+                                              PolicyDTO policy, PolicyHolderDTO holder,
                                               List<Evidence> evidenceList) {
         ClaimFullResponseDTO dto = new ClaimFullResponseDTO();
 
         ClaimDTO claimDTO = new ClaimDTO();
         claimDTO.setClaimId(claim.getClaimId());
-        claimDTO.setPolicyId(claim.getPolicy().getPolicyId());
+        claimDTO.setPolicyId(claim.getPolicyId());
         claimDTO.setReportedBy(claim.getReportedBy());
         claimDTO.setIncidentDate(claim.getIncidentDate());
         claimDTO.setLossType(claim.getLossType());
         claimDTO.setEstimatedAmount(claim.getEstimatedAmount());
         claimDTO.setStatus(claim.getStatus().name());
-        claimDTO.setCreatedAt(claim.getCreatedAt());
+        claimDTO.setCreatedAt(claim.getCreatedDate());
         dto.setClaim(claimDTO);
 
         InvestigationDTO invDTO = new InvestigationDTO();
@@ -148,25 +143,11 @@ public class AdjusterService {
         dto.setInvestigation(invDTO);
 
         if (policy != null) {
-            PolicyDTO policyDTO = new PolicyDTO();
-            policyDTO.setPolicyID(policy.getPolicyId());
-            policyDTO.setPolicyNumber(policy.getPolicyNumber());
-            policyDTO.setInsuredName(policy.getInsuredName());
-            policyDTO.setEffectiveDate(policy.getEffectiveDate());
-            policyDTO.setExpiryDate(policy.getExpiryDate());
-            policyDTO.setCoverageJSON(policy.getCoverageJSON());
-            policyDTO.setStatus(policy.getStatus().name());
-            dto.setPolicy(policyDTO);
+            dto.setPolicy(policy);
         }
 
         if (holder != null) {
-            PolicyHolderDTO holderDTO = new PolicyHolderDTO();
-            holderDTO.setHolderID(holder.getHolderId());
-            holderDTO.setName(holder.getName());
-            holderDTO.setContactInfo(holder.getContactInfo());
-            holderDTO.setBusinessType(holder.getBusinessType());
-            holderDTO.setTaxID(holder.getTaxID());
-            dto.setPolicyHolder(holderDTO);
+            dto.setPolicyHolder(holder);
         }
 
         List<EvidenceDTO> evidenceDTOList = evidenceList.stream().map(ev -> {

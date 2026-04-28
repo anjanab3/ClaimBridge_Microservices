@@ -1,6 +1,8 @@
 package com.cts.claimbridge.service;
 
+import com.cts.claimbridge.client.PolicyServiceClient;
 import com.cts.claimbridge.dto.FraudScoringResultDTO;
+import com.cts.claimbridge.dto.PolicyDTO;
 import com.cts.claimbridge.entity.*;
 import com.cts.claimbridge.repository.*;
 import com.cts.claimbridge.util.TriageStatus;
@@ -14,74 +16,49 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
-/*
-    Calculates a fraud risk score for a claim at submission time.
-    Rules applied (no entity fields added — data sourced from existing fields):
-
-    HIGH WEIGHT (50 pts each)
-    RAPID_CLAIM            – Claim submitted ≤ 7 days after policy inception
-    RECENT_POLICY_CHANGES  – coverageJSON.lastModified within 30 days before claim
-    FREQUENT_CLAIMANT      – Same policyholder filed ≥ 2 claims within 90 days
-
-    MEDIUM WEIGHT (30 pts each)
-    DELAYED_REPORTING      – Incident reported > 30 days after it occurred
-    PERFECT_CLAIM          – Claimed amount is within 5 % below coverageJSON.deductible
-    MISSING_INFORMATION    – No evidence documents uploaded
-
-    Risk bands
-    0 – 40  → GREEN  (auto-approve / fast-track)
-    50 – 80  → YELLOW (standard review)
-    90+      → RED    (auto-escalate: FraudAlert + FRAUD triage queue)
-
-    coverageJSON contract (optional fields — rules silently skip if absent):
-    { "deductible": 5000.0, "lastModified": "2024-11-01", ... }
-*/
 @Service
 public class FraudScoringService {
 
-    // rule weightage
-    private static final int RAPID_CLAIM_SCORE            = 50;
-    private static final int RECENT_POLICY_CHANGE_SCORE   = 30;
-    private static final int FREQUENT_CLAIMANT_SCORE      = 30;
-    private static final int DELAYED_REPORTING_SCORE      = 30;
-    private static final int PERFECT_CLAIM_SCORE          = 30;
-    private static final int MISSING_INFORMATION_SCORE    = 30;
+    private static final int RAPID_CLAIM_SCORE          = 50;
+    private static final int RECENT_POLICY_CHANGE_SCORE = 30;
+    private static final int FREQUENT_CLAIMANT_SCORE    = 30;
+    private static final int DELAYED_REPORTING_SCORE    = 30;
+    private static final int PERFECT_CLAIM_SCORE        = 30;
+    private static final int MISSING_INFORMATION_SCORE  = 30;
 
-    // rule threshold
-    private static final int    RAPID_CLAIM_DAYS          = 7;
-    private static final int    RECENT_CHANGE_DAYS        = 30;
-    private static final int    DELAYED_REPORTING_DAYS    = 30;
-    private static final int    FREQUENT_CLAIM_DAYS       = 70;
-    private static final double PERFECT_CLAIM_TOLERANCE   = 0.05; // 5 % below deductible
+    private static final int    RAPID_CLAIM_DAYS        = 7;
+    private static final int    RECENT_CHANGE_DAYS      = 30;
+    private static final int    DELAYED_REPORTING_DAYS  = 30;
+    private static final int    FREQUENT_CLAIM_DAYS     = 70;
+    private static final double PERFECT_CLAIM_TOLERANCE = 0.05;
 
-    // limit
-    public static final int LOW_RISK_MAX    = 40;   // 0–40  GREEN
-    public static final int MEDIUM_RISK_MAX = 80;   // 50–80 YELLOW  (90+ RED)
+    public static final int LOW_RISK_MAX    = 40;
+    public static final int MEDIUM_RISK_MAX = 80;
 
-    @Autowired private FraudScoreRepository      fraudScoreRepository;
-    @Autowired private FraudAlertRepository      fraudAlertRepository;
-    @Autowired private ClaimRepository           claimRepository;
-    @Autowired private TriageRuleRepository      triageRuleRepository;
-    @Autowired private TriageDecisionRepository  triageDecisionRepository;
+    @Autowired private FraudScoreRepository     fraudScoreRepository;
+    @Autowired private FraudAlertRepository     fraudAlertRepository;
+    @Autowired private ClaimRepository          claimRepository;
+    @Autowired private TriageRuleRepository     triageRuleRepository;
+    @Autowired private TriageDecisionRepository triageDecisionRepository;
+    @Autowired private PolicyServiceClient      policyServiceClient;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    /*
-        Scores the claim, persists a FraudScore, and auto-escalates if RED.
-        Safe to call multiple times — upserts the score rather than duplicating.
-    */
     public FraudScoringResultDTO scoreAndPersist(Claim claim) {
+
+        // Fetch policy once from policy-service — all rules use this
+        PolicyDTO policy = fetchPolicy(claim.getPolicyId());
 
         List<Map<String, Object>> triggered = new ArrayList<>();
         int total = 0;
 
         // Rule 1 : Rapid Claim
-        if (claim.getPolicy() != null
-                && claim.getPolicy().getEffectiveDate() != null
+        if (policy != null
+                && policy.getEffectiveDate() != null
                 && claim.getCreatedDate() != null) {
 
             long days = ChronoUnit.DAYS.between(
-                    claim.getPolicy().getEffectiveDate(),
+                    policy.getEffectiveDate(),
                     claim.getCreatedDate().toLocalDate());
 
             if (days >= 0 && days <= RAPID_CLAIM_DAYS) {
@@ -92,7 +69,7 @@ public class FraudScoringService {
         }
 
         // Rule 2 : Recent Policy Changes (from coverageJSON.lastModified)
-        LocalDate lastModified = parseDate(claim, "lastModified");
+        LocalDate lastModified = parseDate(policy, "lastModified");
         if (lastModified != null && claim.getCreatedDate() != null) {
             long days = ChronoUnit.DAYS.between(lastModified, claim.getCreatedDate().toLocalDate());
             if (days >= 0 && days <= RECENT_CHANGE_DAYS) {
@@ -117,7 +94,7 @@ public class FraudScoringService {
         }
 
         // Rule 4 : Perfect Claim (from coverageJSON.deductible)
-        Double deductible = parseDeductible(claim);
+        Double deductible = parseDeductible(policy);
         if (deductible != null && claim.getEstimatedAmount() != null) {
             double claimed = claim.getEstimatedAmount();
             if (claimed < deductible && claimed >= deductible * (1 - PERFECT_CLAIM_TOLERANCE)) {
@@ -135,16 +112,15 @@ public class FraudScoringService {
                     "No supporting evidence documents uploaded with the claim"));
         }
 
-        // Rule 6 : Frequent Claimant
-        if (claim.getPolicy() != null
-                && claim.getPolicy().getHolder() != null
+        // Rule 6 : Frequent Claimant — use holderId from policy
+        if (policy != null
+                && policy.getHolderId() != null
                 && claim.getCreatedDate() != null) {
 
             LocalDateTime cutoff = claim.getCreatedDate().minusDays(FREQUENT_CLAIM_DAYS);
-            long count = claimRepository.countByPolicy_Holder_HolderIdAndCreatedDateAfter(
-                    claim.getPolicy().getHolder().getHolderId(), cutoff);
+            long count = claimRepository.countByPolicyIdInAndCreatedDateAfter(
+                    getClaimPolicyIdsByHolder(policy.getHolderId()), cutoff);
 
-            // count includes current claim, so > 1 means at least one prior claim
             if (count > 1) {
                 total += FREQUENT_CLAIMANT_SCORE;
                 triggered.add(rule("FREQUENT_CLAIMANT", FREQUENT_CLAIMANT_SCORE,
@@ -154,7 +130,7 @@ public class FraudScoringService {
         }
 
         // Build & persist FraudScore
-        String riskBand   = riskBand(total);
+        String riskBand    = riskBand(total);
         String factorsJson = buildFactorsJson(total, riskBand, triggered);
 
         FraudScore score = fraudScoreRepository
@@ -166,7 +142,6 @@ public class FraudScoringService {
         score.setCalculatedAt(LocalDateTime.now());
         FraudScore saved = fraudScoreRepository.save(score);
 
-        // Auto-escalate RED band claims
         boolean escalated = "RED".equals(riskBand) && autoEscalate(claim, saved);
 
         return FraudScoringResultDTO.builder()
@@ -180,15 +155,12 @@ public class FraudScoringService {
                 .build();
     }
 
-    // Creates a FraudAlert and routes to the FRAUD triage queue
     private boolean autoEscalate(Claim claim, FraudScore score) {
-        // Prevent duplicate alert
         if (!fraudAlertRepository.findByClaim_ClaimId(claim.getClaimId()).isEmpty())
             return false;
 
         FraudAlert alert = new FraudAlert();
         alert.setClaim(claim);
-//        alert.setFraudScore(score);
         alert.setReason("Auto-escalated: fraud score " + score.getScoreValue().intValue() + " (RED band ≥ 90)");
         alert.setStatus("OPEN");
         alert.setEscalatedAt(LocalDateTime.now());
@@ -196,9 +168,6 @@ public class FraudScoringService {
         score.setFraudAlert(savedAlert);
         score.setClaim(claim);
 
-        // update the alert id and claim id in the fraudscore table
-
-        // Route to FRAUD triage queue using the first active FRAUD rule
         List<TriageRule> fraudRules = triageRuleRepository.findByAssignedQueue("FRAUD");
         if (!fraudRules.isEmpty()) {
             TriageRule rule = fraudRules.get(0);
@@ -221,17 +190,37 @@ public class FraudScoringService {
         return true;
     }
 
-    // Parses coverageJSON to extract the deductible amount
-    private Double parseDeductible(Claim claim) {
-        Map<String, Object> coverage = parseCoverageJson(claim);
+    // ── Feign helpers ─────────────────────────────────────────────────────────
+
+    private PolicyDTO fetchPolicy(Long policyId) {
+        try {
+            if (policyId == null) return null;
+            return policyServiceClient.getPolicyById(policyId);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    // Get all policyIds belonging to the same holder — used for frequent claimant rule
+    private List<Long> getClaimPolicyIdsByHolder(Long holderId) {
+        try {
+            return policyServiceClient.getPolicyIdsByHolderId(holderId);
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    // ── coverageJSON parsers — now take PolicyDTO instead of Claim ────────────
+
+    private Double parseDeductible(PolicyDTO policy) {
+        Map<String, Object> coverage = parseCoverageJson(policy);
         if (coverage == null) return null;
         Object val = coverage.get("deductible");
         return val instanceof Number ? ((Number) val).doubleValue() : null;
     }
 
-    // Parses coverageJSON to extract a named date field (e.g. "lastModified")
-    private LocalDate parseDate(Claim claim, String fieldName) {
-        Map<String, Object> coverage = parseCoverageJson(claim);
+    private LocalDate parseDate(PolicyDTO policy, String fieldName) {
+        Map<String, Object> coverage = parseCoverageJson(policy);
         if (coverage == null) return null;
         Object val = coverage.get(fieldName);
         if (val == null) return null;
@@ -242,9 +231,9 @@ public class FraudScoringService {
         }
     }
 
-    private Map<String, Object> parseCoverageJson(Claim claim) {
-        if (claim.getPolicy() == null) return null;
-        String json = claim.getPolicy().getCoverageJSON();
+    private Map<String, Object> parseCoverageJson(PolicyDTO policy) {
+        if (policy == null) return null;
+        String json = policy.getCoverageJSON();
         if (json == null || json.isBlank()) return null;
         try {
             return objectMapper.readValue(json, new TypeReference<>() {});
