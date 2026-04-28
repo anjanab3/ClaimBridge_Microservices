@@ -10,10 +10,10 @@
     </parent>
 
 	<groupId>com.cts</groupId>
-	<artifactId>claimbridge</artifactId>
+	<artifactId>claims-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>war</packaging>
-	<name>claimbridge</name>
+	<name>claims-service</name>
 	<description>Demo project for Spring Boot</description>
 
 	<properties>
