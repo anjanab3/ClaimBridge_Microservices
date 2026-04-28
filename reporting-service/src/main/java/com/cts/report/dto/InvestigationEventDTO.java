@@ -1,12 +1,10 @@
 package com.cts.report.dto;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
 import java.time.LocalDateTime;
 
-@Getter
-@Setter
+@Data
 public class InvestigationEventDTO {
 
     private Long investigationId;

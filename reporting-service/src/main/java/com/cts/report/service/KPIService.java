@@ -50,7 +50,10 @@ public class KPIService {
                         BigDecimal.valueOf(5), "WEEKLY"),
                 build("TOTAL_SETTLED_AMOUNT",
                         "Total settlement payout in the reporting period",
-                        BigDecimal.valueOf(500000), "MONTHLY")
+                        BigDecimal.valueOf(500000), "MONTHLY"),
+                build("SLA_BREACH_COUNT",
+                        "Number of SLA breaches detected in the reporting period",
+                        BigDecimal.valueOf(0), "MONTHLY")
         ));
     }
 
@@ -145,6 +148,11 @@ public class KPIService {
         return kpiRepository.findAll().stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
+    }
+
+    // Called by SLAService to increment SLA_BREACH_COUNT by 1
+    public void incrementKpi(String name) {
+        adjustKpi(name, BigDecimal.ONE);
     }
 
     public KPIResponseDTO updateTarget(Long kpiId, BigDecimal newTarget) {

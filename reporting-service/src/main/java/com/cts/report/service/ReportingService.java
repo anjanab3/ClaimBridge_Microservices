@@ -47,7 +47,7 @@ public class ReportingService {
     }
 
     public ReportResponseDTO generateReport(ReportRequestDTO request) {
-        String scope = request.getScope().toUpperCase();
+        String scope = request.getScope().toUpperCase(); 
         Map<String, Object> metrics = buildMetrics(scope, request.getParametersJSON());
 
         Report report = new Report();
