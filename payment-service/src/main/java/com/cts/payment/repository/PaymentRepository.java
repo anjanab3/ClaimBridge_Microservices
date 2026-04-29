@@ -1,6 +1,7 @@
 package com.cts.payment.repository;
 
 import com.cts.payment.entity.Payment;
+import com.cts.payment.util.PaymentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -10,9 +11,13 @@ import java.util.Optional;
 @Repository
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
-    Optional<Payment> findBySettlement_SettlementId(Long settlementId);
+    Optional<Payment> findBySettlementId(Long settlementId);
 
-    List<Payment> findByPaymentIdAndStatus(Long paymentId, String status);
+    Optional<Payment> findByClaimId(Long claimId);
 
-    Optional<Payment> findBySettlementSettlementId(Long settlementId);
+    boolean existsBySettlementId(Long settlementId);
+
+    Optional<Payment> findByPaymentIdAndStatus(Long paymentId, PaymentStatus status);
+
+    List<Payment> findByStatus(PaymentStatus status);
 }

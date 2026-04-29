@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api")
-@PreAuthorize("hasAnyAuthority('FRAUD_ANALYST','CLAIMS_ADJUSTER')")
+//@PreAuthorize("hasAnyAuthority('FRAUD_ANALYST','CLAIMS_ADJUSTER')")
 public class InvestigationController {
     @Autowired
     private InvestigationService service;
@@ -27,7 +27,7 @@ public class InvestigationController {
 
     @PutMapping("/investigations/{investigationId}")
     public ResponseEntity<?> updateInvestigationAndCreateSettlement(
-            @PathVariable Long investigationId,
+            @PathVariable("investigationId") Long investigationId,
             @RequestBody InvestigateUpdateStatusDTO dto) {
         try {
             return ResponseEntity.ok().body(new MessageDTO(service.updateInvestigationAndCreateSettlement(investigationId, dto),"Status/Settlement updated successfully!!!"));

@@ -28,9 +28,4 @@ public interface ClaimRepository extends JpaRepository<Claim, Long> {
 
     long countByPolicyIdInAndCreatedDateAfter(List<Long> policyIds, LocalDateTime after);
 
-    @Query("SELECT c FROM Claim c " +
-            "JOIN c.settlementList s " +
-            "JOIN s.payments p " +
-            "WHERE p.paymentId = :paymentId")
-    Optional<Claim> findByPaymentId(@Param("paymentId") Long paymentId);
 }

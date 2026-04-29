@@ -21,7 +21,7 @@ public class AdjusterController {
 
     @GetMapping("/claims/{adjusterId}")
     public ResponseEntity<?> getAssignedClaims(
-            @PathVariable String adjusterId,
+            @PathVariable("adjusterId") String adjusterId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 

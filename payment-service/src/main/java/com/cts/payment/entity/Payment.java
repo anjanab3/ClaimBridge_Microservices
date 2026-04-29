@@ -1,7 +1,6 @@
 package com.cts.payment.entity;
 
 import com.cts.payment.util.PaymentStatus;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -20,6 +19,14 @@ public class Payment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long paymentId;
 
+    // Plain column — no cross-DB JPA join to claims-service
+    @Column(nullable = false)
+    private Long settlementId;
+
+    // Plain column — no cross-DB JPA join to claims-service
+    @Column(nullable = false)
+    private Long claimId;
+
     private String payee;
     private Double amount;
     private String method;
@@ -31,8 +38,8 @@ public class Payment {
 
     private String reference;
 
-    @ManyToOne
-    @JoinColumn(name = "settlementId", nullable = false)
-    @JsonIgnoreProperties("payments")
-    private Settlement settlement;
+    //     @ManyToOne
+//     @JoinColumn(name = "settlementId", nullable = false)
+//     @JsonIgnoreProperties("payments")
+//     private Settlement settlement;
 }
