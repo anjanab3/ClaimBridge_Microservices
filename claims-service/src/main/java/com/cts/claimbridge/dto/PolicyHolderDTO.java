@@ -4,7 +4,7 @@ import lombok.Data;
 
 @Data
 public class PolicyHolderDTO { //A
-    private Long holderID;
+    private Long holderId;
     private String name;
     private String contactInfo;
     private String businessType;

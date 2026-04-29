@@ -14,18 +14,19 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface ClaimRepository extends JpaRepository<Claim,Long> {
-    List<Claim> findByPolicy_Holder_HolderId(Long holderId);
+public interface ClaimRepository extends JpaRepository<Claim, Long> {
+
+    // Replaces findByPolicy_Holder_HolderId — Claim now stores policyId as plain Long
+    List<Claim> findByPolicyIdIn(List<Long> policyIds);
+
     Page<Claim> findByStatus(ClaimStatus status, Pageable pageable);
-//    List<Claim> findByResponseDueDateBefore(LocalDateTime time);
-//    List<Claim> findByResolutionDueDateBefore(LocalDateTime time);
-    Page<Claim> findByLossType(String losType, Pageable pageable);
+
+    Page<Claim> findByLossType(String lossType, Pageable pageable);
 
     @Query("SELECT c.status FROM Claim c WHERE c.claimId = :claimId")
     Optional<ClaimStatus> findClaimStatusById(@Param("claimId") Long claimId);
 
-    // Used by FraudScoringService to detect frequent claimants (>1 claim in 90 days).
-    long countByPolicy_Holder_HolderIdAndCreatedDateAfter(Long holderId, LocalDateTime cutoff);
+    long countByPolicyIdInAndCreatedDateAfter(List<Long> policyIds, LocalDateTime after);
 
     @Query("SELECT c FROM Claim c " +
             "JOIN c.settlementList s " +

@@ -31,7 +31,7 @@ public class PolicyService {
         return policyRepo.findAll(pageable);
     }
 
-    public List<Policy> save(List<Policy> policies) {
+    public List<Policy> savePolicies(List<Policy> policies) {
       for(Policy policy:policies){
           if(policyRepo.existsByPolicyNumber(policy.getPolicyNumber())){
               throw new RuntimeException("Policy Number already exists");
@@ -39,4 +39,11 @@ public class PolicyService {
       }
         return policyRepo.saveAll(policies);
     }
+
+    public List<Long> findPolicyIdsByHolderId(Long holderId) {
+    return policyRepo.findByHolderId(holderId)
+            .stream()
+            .map(Policy::getPolicyId)
+            .toList();
+}
 }
