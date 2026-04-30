@@ -18,25 +18,25 @@ public interface TriageDecisionRepository extends JpaRepository<TriageDecision, 
     // All decisions for a specific claim
     List<TriageDecision> findByClaim_ClaimId(Long claimId);
 
-//     // Most recent decision for a claim
-//     Optional<TriageDecision> findTopByClaimIdOrderByAssignedAtDesc(Long claimId);
+    // Most recent decision for a claim
+    Optional<TriageDecision> findTopByClaimIdOrderByAssignedAtDesc(Long claimId);
 
-//     // All decisions assigned to a specific adjuster or queue
+    // All decisions assigned to a specific adjuster or queue
     List<TriageDecision> findByAssignedTo(String assignedTo);
 
-//     // Check if a claim is assigned to an adjuster
-    boolean existsByAssignedToAndClaim_ClaimId(String assignedTo, Long claimId);
+    // Check if a claim is assigned to an adjuster
+    boolean existsByAssignedToAndClaimId(String assignedTo, Long claimId);
 
-//     // Filter decisions by priority level
-//     List<TriageDecision> findByPriority(Priority priority);
+    // Filter decisions by priority level
+    List<TriageDecision> findByPriority(Priority priority);
 
-//     // Returns only claims whose LATEST decision is in the given queue (non-paginated, internal use)
-//     @Query("SELECT d FROM TriageDecision d WHERE d.assignedQueue = :assignedQueue AND d.assignedAt = " +
-//            "(SELECT MAX(d2.assignedAt) FROM TriageDecision d2 WHERE d2.claimId = d.claimId)")
-//     List<TriageDecision> findLatestByAssignedQueue(@Param("assignedQueue") String assignedQueue);
+    // Returns only claims whose LATEST decision is in the given queue (non-paginated, internal use)
+    @Query("SELECT d FROM TriageDecision d WHERE d.assignedQueue = :assignedQueue AND d.assignedAt = " +
+           "(SELECT MAX(d2.assignedAt) FROM TriageDecision d2 WHERE d2.claimId = d.claimId)")
+    List<TriageDecision> findLatestByAssignedQueue(@Param("assignedQueue") String assignedQueue);
 
-//     // Paginated version — used by controllers
-//     @Query("SELECT d FROM TriageDecision d WHERE d.assignedQueue = :assignedQueue AND d.assignedAt = " +
-//            "(SELECT MAX(d2.assignedAt) FROM TriageDecision d2 WHERE d2.claimId = d.claimId)")
-//     Page<TriageDecision> findLatestByAssignedQueue(@Param("assignedQueue") String assignedQueue, Pageable pageable);
- }
+    // Paginated version — used by controllers
+    @Query("SELECT d FROM TriageDecision d WHERE d.assignedQueue = :assignedQueue AND d.assignedAt = " +
+           "(SELECT MAX(d2.assignedAt) FROM TriageDecision d2 WHERE d2.claimId = d.claimId)")
+    Page<TriageDecision> findLatestByAssignedQueue(@Param("assignedQueue") String assignedQueue, Pageable pageable);
+}

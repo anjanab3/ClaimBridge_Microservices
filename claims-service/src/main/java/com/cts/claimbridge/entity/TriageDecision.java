@@ -14,6 +14,9 @@ public class TriageDecision {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long decisionId;
 
+    @Column(name = "claim_id")
+    private Long claimId;
+
     private Long ruleId;
 
     @Enumerated(EnumType.STRING)

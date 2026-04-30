@@ -1,20 +1,24 @@
 package com.cts.claimbridge.entity;
 
-import com.cts.claimbridge.util.ClaimStatus;
-import com.fasterxml.jackson.annotation.JsonBackReference;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
+
+import com.cts.claimbridge.util.ClaimStatus;
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import java.util.List;
 
 @Entity
 @Table(name = "claims")
 @Getter
 @Setter
 public class Claim {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long claimId;
@@ -24,56 +28,59 @@ public class Claim {
 
     @Column(nullable = false)
     private LocalDate incidentDate;
-    
+
     @Column(columnDefinition = "TEXT")
     private String description;
-    
+
     private String lossType;
     private Double estimatedAmount;
 
     @Enumerated(EnumType.STRING)
     private ClaimStatus status;
-    
-    @Column(nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
-    private LocalDateTime createdDate = LocalDateTime.now();
 
+    @Column(name = "createdAt", nullable = false, updatable = false)
+    private LocalDateTime createdDate;
 
-    @OneToOne(mappedBy = "claim", cascade = CascadeType.ALL) //A
-    @JsonBackReference(value="inv") //A
-    private Investigation investigation; //A
+    @PrePersist
+    protected void onCreate() {
+        this.createdDate = LocalDateTime.now();
+    }
 
-    @OneToMany(mappedBy = "claim", cascade = CascadeType.ALL) //A
-    @JsonBackReference(value = "claim") //A
-    private List<Evidence> evidenceList; //A
+    private Long policyId;
+//     @ManyToOne
+// @JoinColumn(name = "policy_id")
+// @JsonIgnore
+// private Policy policy;
 
-    @OneToMany(mappedBy = "claim",cascade = CascadeType.ALL) //A
-    @JsonBackReference(value = "triage") //A
-    private List<TriageDecision> triageDecisionList; //A
+    @OneToOne(mappedBy = "claim", cascade = CascadeType.ALL)
+    @JsonBackReference(value = "inv")
+    private Investigation investigation;
 
-    @OneToOne(mappedBy = "claim",cascade = CascadeType.ALL) //A
-    @JsonBackReference(value = "score") //A
-    private FraudScore fraudScore; //A
+    @OneToMany(mappedBy = "claim", cascade = CascadeType.ALL)
+    @JsonBackReference(value = "claim")
+    private List<Evidence> evidenceList;
 
-    @OneToMany(mappedBy = "claim") //A
-    @JsonBackReference(value = "alert") //A
-    private  List<FraudAlert> alerts; //A
+    @OneToMany(mappedBy = "claim", cascade = CascadeType.ALL)
+    @JsonBackReference(value = "triage")
+    private List<TriageDecision> triageDecisionList;
 
-    @OneToMany(mappedBy = "claim",cascade = CascadeType.ALL) //A
-    @JsonBackReference(value = "set") //A
-    private List<Settlement> settlementList; //A
+    @OneToOne(mappedBy = "claim", cascade = CascadeType.ALL)
+    @JsonBackReference(value = "score")
+    private FraudScore fraudScore;
 
-    @OneToMany(mappedBy = "claim",cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "claim", cascade = CascadeType.ALL)
+    @JsonBackReference(value = "alert")
+    private List<FraudAlert> alerts;
+
+    @OneToMany(mappedBy = "claim", cascade = CascadeType.ALL)
+    @JsonBackReference(value = "set")
+    private List<Settlement> settlementList;
+
+    @OneToMany(mappedBy = "claim", cascade = CascadeType.ALL)
     @JsonBackReference(value = "comm")
     private List<Communication> communicationList;
 
-    @OneToMany(mappedBy = "claim") 
+    @OneToMany(mappedBy = "claim")
     @JsonBackReference(value = "notification")
-    private  List<Notification> notificationList;
-
-    @ManyToOne //A
-    @JoinColumn(name = "policy_id") //A
-    @JsonBackReference(value = "policy") //A
-    private Policy policy; //A
-
+    private List<Notification> notificationList;
 }

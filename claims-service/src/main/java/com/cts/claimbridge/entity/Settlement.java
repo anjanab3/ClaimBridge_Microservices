@@ -30,7 +30,5 @@ public class Settlement {
     @JsonBackReference(value = "set")//A
     private Claim claim;//A
 
-    @OneToMany(mappedBy = "settlement", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Payment> payments;
     
 }

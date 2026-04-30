@@ -1,7 +1,8 @@
 package com.cts.payment.controller;
 
 import com.cts.payment.dto.ResponseDTO;
-import com.cts.payment.entity.Settlement;
+import com.cts.payment.dto.SettlementSyncDTO;
+import com.cts.payment.entity.Payment;
 import com.cts.payment.service.SettlementService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -14,34 +15,62 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@PreAuthorize("hasAuthority('PAYOUT_OFFICER')")
 @RequestMapping("/api/settlement")
 public class SettlementController {
 
     @Autowired
     private SettlementService settlementService;
 
-    // Get all settlements — called by frontend on load
-    @GetMapping
-    public ResponseEntity<List<Settlement>> getAllSettlements() {
-        return ResponseEntity.ok(settlementService.getAllSettlements());
-    }
-
-    // Get all settlements for a claim
-    @GetMapping("/{claimId}/settlement")
-    public ResponseEntity<List<Settlement>> getSettlement(@PathVariable Long claimId) {
-        List<Settlement> settlements = settlementService.getSettlementsByClaim(claimId);
-        return ResponseEntity.ok(settlements);
-    }
-
-    // Approve or reject a settlement
-    @PostMapping("/{settlementId}/status")
-    public ResponseEntity<?> updateStatus(@PathVariable Long settlementId, @RequestBody Map<String, String> statusUpdate) {
-        String newStatus = statusUpdate.get("status");
-        Optional<Settlement> settlement = settlementService.updateStatus(settlementId, newStatus);
-        if (settlement.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ResponseDTO("Settlement Not Found"));
+    // Receive settlement pushed from claims-service — internal call no auth needed
+    @PostMapping("/receive")
+    public ResponseEntity<?> receiveSettlement(@RequestBody SettlementSyncDTO dto) {
+        try {
+            Payment saved = settlementService.receiveSettlement(dto);
+            return ResponseEntity.ok(saved);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(new ResponseDTO("Failed to receive settlement: " + e.getMessage()));
         }
-        return ResponseEntity.ok().body(new ResponseDTO("Settlement Status Changed!!!"));
+    }
+
+    // Get all payments — payout officer overview
+    //@PreAuthorize("hasAuthority('PAYOUT_OFFICER')")
+    @GetMapping
+    public ResponseEntity<?> getAllSettlements() {
+        List<Payment> payments = settlementService.getAllSettlements();
+        if (payments.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ResponseDTO("No Settlements Found"));
+        }
+        return ResponseEntity.ok(payments);
+    }
+
+    // Get payment by claimId
+    //@PreAuthorize("hasAuthority('PAYOUT_OFFICER')")
+    @GetMapping("/claim/{claimId}")
+    public ResponseEntity<?> getSettlementByClaim(
+            @PathVariable("claimId") Long claimId) {
+        Optional<Payment> payment = settlementService.getSettlementsByClaim(claimId);
+        if (payment.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ResponseDTO("No Settlement Found for claimId: " + claimId));
+        }
+        return ResponseEntity.ok(payment.get());
+    }
+
+    // Approve or reject settlement
+    //@PreAuthorize("hasAuthority('PAYOUT_OFFICER')")
+    @PostMapping("/{settlementId}/status")
+    public ResponseEntity<?> updateStatus(
+            @PathVariable("settlementId") Long settlementId,
+            @RequestBody Map<String, String> statusUpdate) {
+        try {
+            String newStatus = statusUpdate.get("status");
+            settlementService.updateStatus(settlementId, newStatus);
+            return ResponseEntity.ok(new ResponseDTO("Settlement status updated to " + newStatus));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ResponseDTO(e.getMessage()));
+        }
     }
 }

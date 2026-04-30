@@ -3,6 +3,7 @@ package com.cts.claimbridge.controller;
 import com.cts.claimbridge.dto.FraudDataResponseDTO;
 import com.cts.claimbridge.service.FraudDataService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController

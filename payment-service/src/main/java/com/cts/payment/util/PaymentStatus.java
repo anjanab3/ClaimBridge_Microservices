@@ -1,8 +1,8 @@
 package com.cts.payment.util;
 
 public enum PaymentStatus {
+    PENDING,
     INITIATED,
-    APPROVED,
-    IN_REVIEW,
-    SETTLED
+    SETTLED,
+    FAILED
 }

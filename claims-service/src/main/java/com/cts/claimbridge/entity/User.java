@@ -27,7 +27,8 @@ public class User {
     private String roleCode;
     @Enumerated(EnumType.STRING)
     private UserStatus status;
-    @ManyToOne(cascade = CascadeType.MERGE)
-    @JoinColumn(name = "holder_id", nullable = true)
-    private PolicyHolder policyHolder;
+    // @ManyToOne(cascade = CascadeType.MERGE)
+    // @JoinColumn(name = "holder_id", nullable = true)
+    // private PolicyHolder policyHolder;
+    private Long holderId;
 }

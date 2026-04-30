@@ -2,6 +2,7 @@ package com.cts.claimbridge.controller;
 
 
 import com.cts.claimbridge.dto.*;
+import com.cts.claimbridge.entity.InvestigationNote;
 import com.cts.claimbridge.service.InteractionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

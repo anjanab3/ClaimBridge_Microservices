@@ -13,9 +13,13 @@ import java.time.LocalDateTime;
 @Builder
 public class TriageDecisionResponseDTO { //A
     private Long decisionId;
+    private Long claimId;
     private Long ruleId;
-    private Priority priority;        // HIGH, MEDIUM, LOW, CRITICAL  // ADJUSTER or FRAUD
-    private String assignedTo;      // role_code of assigned user e.g. CA-001        // OPEN, IN_REVIEW, CLOSED
+    private Priority priority;        // HIGH, MEDIUM, LOW, CRITICAL
+    private String assignedQueue;   // ADJUSTER or FRAUD
+    private String assignedTo;      // role_code of assigned user e.g. CA-001
+    private TriageStatus status;          // OPEN, IN_REVIEW, CLOSED
     private LocalDateTime assignedAt;
+    private String message;
 
 }
