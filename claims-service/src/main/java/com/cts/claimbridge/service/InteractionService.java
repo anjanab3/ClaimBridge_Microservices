@@ -44,17 +44,21 @@ public class InteractionService {
         note.setCreatedAt(LocalDateTime.now());
         return noteRepo.save(note);
     }
-    public InvestigationNote updateNote(Long investigationId, InvNoteUpdateResponseDTO dto){ //A
-        Investigation inv=invRepo.findById(investigationId)
-                .orElseThrow(()->new RuntimeException("Investigation not found"));
-        InvestigationNote note=noteRepo.findByNoteIdAndInvestigation_InvestigationId(dto.getNoteId(),investigationId)
-                .orElseThrow(()->new RuntimeException("Note does not belong to this investigation"));
-        String existing = note.getNoteText();
-        String updated = (existing == null || existing.isEmpty())
-                ? dto.getNoteText()
-                : existing + "\n" + dto.getNoteText();
-        note.setNoteText(updated);
-        return noteRepo.save(note);
-    }
+    public InvestigationNote updateNote(Long investigationId, InvNoteUpdateResponseDTO dto) {
+    InvestigationNote note = noteRepo
+            .findByNoteIdAndInvestigation_InvestigationId(dto.getNoteId(), investigationId)
+            .orElseThrow(() -> new RuntimeException("Note does not belong to this investigation"));
+
+    // Replace entirely — don't append
+    note.setNoteText(dto.getNoteText());
+    return noteRepo.save(note);
+}
+
+    public void deleteNote(Long investigationId, Long noteId) {
+    InvestigationNote note = noteRepo
+            .findByNoteIdAndInvestigation_InvestigationId(noteId, investigationId)
+            .orElseThrow(() -> new RuntimeException("Note not found"));
+    noteRepo.delete(note);
+}
 }
 

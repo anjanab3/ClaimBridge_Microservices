@@ -30,42 +30,50 @@ public class AdjusterService {
     private EvidenceRepository evidenceRepo;
     @Autowired
     private PolicyServiceClient policyServiceClient;
-
+    
     public Page<ClaimFullResponseDTO> getAssignedClaims(String adjusterId, int page, int size) {
-        List<TriageDecision> decisions = triageRepo.findByAssignedTo(adjusterId);
+    List<TriageDecision> decisions = triageRepo.findByAssignedTo(adjusterId);
 
-        List<ClaimFullResponseDTO> resultList = decisions.stream()
-                .map(decision -> {
-                    Claim claim = claimRepo.findById(decision.getClaim().getClaimId())
-                            .orElseThrow(() -> new RuntimeException("Claim not found"));
-
-                    Investigation investigation = investigationRepo
-                            .findByClaim_ClaimId(claim.getClaimId())
-                            .orElseGet(() -> createInvestigation(claim));
-
-                    investigation.setStatus(InvestigationStatus.OPEN);
-                    investigationRepo.save(investigation);
-
-                    Long policyId = claim.getPolicyId();
-                    PolicyDTO policy = fetchPolicy(policyId);
-                    PolicyHolderDTO holder = fetchPolicyHolder(policy != null ? policy.getHolderId() : null);
-                    System.out.println("Fetched holder: " + holder); 
-                    List<Evidence> evidences = evidenceRepo.findByClaim_ClaimId(claim.getClaimId());
-
-                    return mapToFullDTO(claim, investigation, policy, holder, evidences);
-                })
-                .collect(Collectors.toList());
-
-        Pageable pageable = PageRequest.of(page, size);
-        int start = (int) pageable.getOffset();
-        int end = Math.min(start + size, resultList.size());
-
-        if (start > resultList.size()) {
-            return new PageImpl<>(List.of(), pageable, resultList.size());
-        }
-
-        return new PageImpl<>(resultList.subList(start, end), pageable, resultList.size());
+    // If no claims assigned — return empty page instead of throwing error
+    if (decisions.isEmpty()) {
+        return new PageImpl<>(List.of(), PageRequest.of(page, size), 0);
     }
+
+    Optional<User> adjuster = userRepository.findByRoleCode(adjusterId);
+    if (adjuster.isEmpty()) {
+        throw new RuntimeException("No Adjuster Found");
+    }
+
+    List<ClaimFullResponseDTO> resultList = decisions.stream()
+            .map(decision -> {
+                Claim claim = claimRepo.findById(decision.getClaim().getClaimId())
+                        .orElseThrow(() -> new RuntimeException("Claim not found"));
+
+                Investigation investigation = investigationRepo
+                        .findByClaim_ClaimId(claim.getClaimId())
+                        .orElseGet(() -> createInvestigation(claim));
+
+                Long policyId = claim.getPolicyId();
+                PolicyDTO policy = fetchPolicy(policyId);
+                PolicyHolderDTO holder = fetchPolicyHolder(
+                        policy != null ? policy.getHolderId() : null);
+                List<Evidence> evidences = evidenceRepo.findByClaim_ClaimId(
+                        claim.getClaimId());
+
+                return mapToFullDTO(claim, investigation, policy, holder, evidences);
+            })
+            .collect(Collectors.toList());
+
+    Pageable pageable = PageRequest.of(page, size);
+    int start = (int) pageable.getOffset();
+    int end = Math.min(start + size, resultList.size());
+
+    if (start > resultList.size()) {
+        return new PageImpl<>(List.of(), pageable, resultList.size());
+    }
+
+    return new PageImpl<>(resultList.subList(start, end), pageable, resultList.size());
+}
 
     public ClaimFullResponseDTO getAssignedClaimsById(String adjusterId, Long claimId) {
         Optional<Claim> claimOpt = claimRepo.findById(claimId);
@@ -75,24 +83,28 @@ public class AdjusterService {
 
         Claim claim = claimOpt.get();
 
+        // Only create investigation if it doesn't exist
+        // Never overwrite status — preserve CLOSED or any other status
         Investigation investigation = investigationRepo.findByClaim_ClaimId(claimId)
                 .orElseGet(() -> createInvestigation(claim));
 
-        investigation.setStatus(InvestigationStatus.OPEN);
-        investigationRepo.save(investigation);
-
         Long policyId = claim.getPolicyId();
         PolicyDTO policy = fetchPolicy(policyId);
-        PolicyHolderDTO holder = fetchPolicyHolder(policy != null ? policy.getHolderId() : null);
+        PolicyHolderDTO holder = fetchPolicyHolder(
+                policy != null ? policy.getHolderId() : null);
         List<Evidence> evidences = evidenceRepo.findByClaim_ClaimId(claimId);
 
         return mapToFullDTO(claim, investigation, policy, holder, evidences);
     }
 
+    // ── helpers ───────────────────────────────────────────────────────────────
+
     private PolicyDTO fetchPolicy(Long policyId) {
         try {
+            if (policyId == null) return null;
             return policyServiceClient.getPolicyById(policyId);
         } catch (Exception e) {
+            System.out.println("fetchPolicy error: " + e.getMessage());
             return null;
         }
     }
@@ -102,10 +114,12 @@ public class AdjusterService {
             if (holderId == null) return null;
             return policyServiceClient.getPolicyHolderById(holderId);
         } catch (Exception e) {
+            System.out.println("fetchPolicyHolder error: " + e.getMessage());
             return null;
         }
     }
 
+    // Creates investigation only when one doesn't exist yet
     private Investigation createInvestigation(Claim claim) {
         Investigation inv = new Investigation();
         inv.setClaim(claim);

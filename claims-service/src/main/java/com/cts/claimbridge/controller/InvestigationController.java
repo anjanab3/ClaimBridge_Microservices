@@ -2,6 +2,9 @@ package com.cts.claimbridge.controller;
 
 import com.cts.claimbridge.dto.*;
 import com.cts.claimbridge.service.InvestigationService;
+
+import jakarta.transaction.Transactional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +19,7 @@ public class InvestigationController {
     private InvestigationService service;
 
     @GetMapping("/claims/{claimId}/investigation")
-    public ResponseEntity<?> getInvestigationByClaimId(@PathVariable Long claimId) {
+    public ResponseEntity<?> getInvestigationByClaimId(@PathVariable("claimId") Long claimId) {
         try {
             InvestigationFullResponseDTO result = service.getInvestigationByClaimId(claimId);
             return ResponseEntity.ok(result);
@@ -25,6 +28,7 @@ public class InvestigationController {
         }
     }
 
+    @Transactional
     @PutMapping("/investigations/{investigationId}")
     public ResponseEntity<?> updateInvestigationAndCreateSettlement(
             @PathVariable("investigationId") Long investigationId,

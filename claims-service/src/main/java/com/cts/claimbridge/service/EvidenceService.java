@@ -99,4 +99,8 @@ public class EvidenceService {
         dto.setUploadedAt(e.getUploadedAt());
         return dto;
     }
+
+    public Evidence getEvidenceById(Long evidenceId) {
+    return evidenceRepository.findById(evidenceId).orElse(null);
+}
 }

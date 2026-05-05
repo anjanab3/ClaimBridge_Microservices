@@ -51,26 +51,10 @@ public class CommunicationService {
         return notificationRepository.findByClaim_ClaimIdOrderByCreatedAtDesc(claimId);
     }
 
-    public Page<Communication> getCommunicationsByUserId(long userId, int page , int size) {
-          Pageable pageable = PageRequest.of(page ,size);
-          return communicationRepository.findByToUserId(userId,pageable);
-    }
-//    public Notification sendNotification(Long claimId, Notification notification) {
-//        Claim claim = claimRepository.findById(claimId).orElseThrow(() -> new RuntimeException("Claim not found with id: " + claimId));
-//        notification.setClaim(claim);
-//        notification.setCreatedAt(LocalDateTime.now());
-//
-//        if (notification.getStatus() == null) {
-//            notification.setStatus("SENT");
-//        }
-//        return notificationRepository.save(notification);
-//    }
-//
-//    public Page<Notification> getNotificationsByClaim(Long claimId, int page, int size) {
-//        Pageable pageable = PageRequest.of(page, size);
-//        return notificationRepository.findByClaim_ClaimIdOrderByCreatedAtDesc(claimId, pageable);
-//    }
-
+   public Page<Communication> getCommunicationsByUserId(String userId, int page, int size) {
+    Pageable pageable = PageRequest.of(page, size);
+    return communicationRepository.findByToUserId(userId, pageable);
+}
 
 
 }

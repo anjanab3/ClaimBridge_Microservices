@@ -10,6 +10,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,7 +23,7 @@ public class EvidenceController {
     @Autowired
     private EvidenceService evidenceService;
 
-    @PreAuthorize("hasAuthority('USER')")
+    //@PreAuthorize("hasAuthority('USER')")
     @PostMapping("/{holderId}/{claimId}/evidence") //A
     public ResponseEntity<?> uploadEvidence(@PathVariable long holderId , @PathVariable long claimId , @RequestParam("file") MultipartFile file)
     {
@@ -35,7 +39,7 @@ public class EvidenceController {
         return ResponseEntity.status(404).body(new ResponseDTO("Evidence Upload Failed !!!"));
     }
 
-    @PreAuthorize("hasAuthority('CLAIMS_ADJUSTER')")
+    //@PreAuthorize("hasAuthority('CLAIMS_ADJUSTER')")
     @GetMapping("/{claimId}/evidence") //A
     public ResponseEntity<?> getEvidenceByClaimId(@PathVariable Long claimId){
         List<EvidenceDTO> evidence = evidenceService.getEvidenceByClaimId(claimId);
@@ -69,10 +73,43 @@ public class EvidenceController {
 //        return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION,"attachment; filename=\"" + fileName + "\"" ).header(HttpHeaders.CONTENT_LENGTH , String.valueOf(fileBytes.length)).body(fileBytes);
 //    }
 
-    @PreAuthorize("hasAuthority('CLAIMS_ADJUSTER')")
+   // @PreAuthorize("hasAuthority('CLAIMS_ADJUSTER')")
     @PutMapping("/{claimId}/{evidenceId}/verify") //A
     public EvidenceDTO verifyEvidence(@PathVariable Long claimId, @PathVariable Long evidenceId, @RequestBody VerifyevidenceRequestDTO dto){
         return evidenceService.verifyEvidence(claimId,evidenceId,dto);
     }
+
+    @GetMapping("/{claimId}/{evidenceId}/evidence/download")
+public ResponseEntity<?> downloadEvidence(
+        @PathVariable Long claimId,
+        @PathVariable Long evidenceId) {
+    try {
+        Evidence evidence = evidenceService.getEvidenceById(evidenceId);
+        if (evidence == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Path path = Paths.get(evidence.getFilePath());
+        if (!Files.exists(path)) {
+            return ResponseEntity.status(404)
+                    .body(new ResponseDTO("File not found on server"));
+        }
+
+        byte[] fileBytes = Files.readAllBytes(path);
+        String fileName  = evidence.getFileName();
+        String fileType  = evidence.getFileType() != null
+                ? evidence.getFileType() : "application/octet-stream";
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"" + fileName + "\"")
+                .header(HttpHeaders.CONTENT_TYPE, fileType)
+                .header(HttpHeaders.CONTENT_LENGTH, String.valueOf(fileBytes.length))
+                .body(fileBytes);
+
+    } catch (Exception e) {
+        return ResponseEntity.badRequest().body(new ResponseDTO(e.getMessage()));
+    }
+}
 }
 

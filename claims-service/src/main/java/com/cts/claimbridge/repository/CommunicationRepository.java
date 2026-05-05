@@ -12,6 +12,6 @@ public interface CommunicationRepository extends JpaRepository<Communication,Lon
     List<Communication> findByClaim_ClaimIdOrderBySentAtAsc(Long claimId); //A
     List<Communication> findByClaim_ClaimIdOrderBySentAtDesc(Long claimId);
 
-    Page<Communication> findByToUserId(long userId, Pageable pageable);
+    Page<Communication> findByToUserId(String userId, Pageable pageable);  
     Page<Communication> findByClaim_ClaimIdOrderBySentAtDesc(Long claimId, Pageable pageable);
 }

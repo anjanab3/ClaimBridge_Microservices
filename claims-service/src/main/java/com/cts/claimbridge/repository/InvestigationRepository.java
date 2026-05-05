@@ -8,4 +8,5 @@ import java.util.Optional;
 @Repository
 public interface InvestigationRepository extends JpaRepository<Investigation, Long> {
     Optional<Investigation> findByClaim_ClaimId(Long claimId);//A
+    
 }
