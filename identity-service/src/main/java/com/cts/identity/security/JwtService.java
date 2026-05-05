@@ -23,15 +23,16 @@ public class JwtService {
     }
 
     public String generateToken(User user) {
-        return Jwts.builder()
-                .claim("role", user.getRole().name())
-                .claim("userId", user.getUserId())
-                .setSubject(user.getUsername())
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 70))
-                .signWith(SignatureAlgorithm.HS256, getSigningKey())
-                .compact();
-    }
+    return Jwts.builder()
+            .claim("role",     user.getRole().name())
+            .claim("userId",   user.getUserId())      // CA-0001 — String PK
+            .claim("username", user.getUsername())    // anjana
+            .setSubject(user.getUsername())
+            .setIssuedAt(new Date(System.currentTimeMillis()))
+            .setExpiration(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 70))
+            .signWith(SignatureAlgorithm.HS256, getSigningKey())
+            .compact();
+}
 
     public Claims extractClaims(String token) {
         return Jwts.parserBuilder()

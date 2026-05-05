@@ -6,7 +6,11 @@ import com.cts.claimbridge.entity.*;
 import com.cts.claimbridge.repository.*;
 import com.cts.claimbridge.util.InvestigationStatus;
 import com.cts.claimbridge.util.Status;
+
+import jakarta.transaction.Transactional;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -38,11 +42,17 @@ public class InvestigationService {
         return mapToFullDTO(inv, notes);
     }
 
+    @Transactional
     public InvUpdateResponseDTO updateInvestigationAndCreateSettlement(
             Long investigationId, InvestigateUpdateStatusDTO dto) {
 
         Investigation inv = investigationRepo.findById(investigationId)
                 .orElseThrow(() -> new RuntimeException("Investigation not found"));
+
+        // If already closed — don't process again
+        if (inv.getStatus() == InvestigationStatus.CLOSED) {
+            return mapToDTO(inv, null);
+        }
 
         inv.setStatus(InvestigationStatus.valueOf(dto.getStatus()));
 
@@ -54,19 +64,27 @@ public class InvestigationService {
             Claim claim = claimRepo.findById(inv.getClaim().getClaimId())
                     .orElseThrow(() -> new RuntimeException("Claim not found"));
 
-            settlement = new Settlement();
-            settlement.setClaim(claim);
-            settlement.setRecommendedAmount(dto.getRecommendedAmount());
-            settlement.setRecommendedBy(dto.getRecommendedBy());
-            settlement.setRecommendedAt(LocalDateTime.now());
-            settlement.setStatus(Status.IN_REVIEW);
+            // Get recommendedBy from JWT — no need for frontend to send it
+            String recommendedBy = SecurityContextHolder.getContext()
+                    .getAuthentication().getName();
 
-            Settlement savedSettlement = settlementRepo.save(settlement);
+            // Prevent duplicate settlements
+            boolean exists = settlementRepo.existsByClaim_ClaimId(claim.getClaimId());
+            if (!exists) {
+                settlement = new Settlement();
+                settlement.setClaim(claim);
+                settlement.setRecommendedAmount(dto.getRecommendedAmount());
+                settlement.setRecommendedBy(recommendedBy);  // ← from JWT
+                settlement.setRecommendedAt(LocalDateTime.now());
+                settlement.setStatus(Status.IN_REVIEW);
 
-            // Push settlement to payment-service via Feign
-            sendSettlementToPayment(savedSettlement);
+                Settlement savedSettlement = settlementRepo.save(settlement);
 
-            settlement = savedSettlement;
+                // Push settlement to payment-service via Feign
+                sendSettlementToPayment(savedSettlement);
+
+                settlement = savedSettlement;
+            }
         }
 
         investigationRepo.save(inv);

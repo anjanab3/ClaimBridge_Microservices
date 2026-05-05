@@ -44,46 +44,17 @@ public class CommunicationController {
         }
     }
 
-
-//    @PostMapping("/notifications")
-//    public ResponseEntity<?> createNotify(
-//            @PathVariable Long claimID,
-//            @RequestBody Notification notify) {
-//        try {
-//            Notification savedNotify = communicationService.sendNotification(claimID, notify);
-//            return ResponseEntity.status(HttpStatus.CREATED).body(savedNotify);
-//        } catch (RuntimeException e) {
-//            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-//        }
-//    }
-//
-//    /**
-//     * 4. View Notifications for a Claim
-//     * GET /api/claims/123/notifications?page=0&size=10
-//     */
-//    @GetMapping("/notifications")
-//    public ResponseEntity<?> listNotifications(
-//            @PathVariable Long claimID,
-//            @RequestParam(defaultValue = "0") int page,
-//            @RequestParam(defaultValue = "10") int size) {
-//        try {
-//            Page<Notification> notifications = communicationService.getNotificationsByClaim(claimID, page, size);
-//            return ResponseEntity.ok(notifications);
-//        } catch (RuntimeException e) {
-//            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-//        }
-//    }
-
     @GetMapping("/{userId}/communication")
-    public ResponseEntity<?> getCommunicationByUserId(@PathVariable long userId,
-                                                      @RequestParam(defaultValue = "0") int page,
-                                                      @RequestParam(defaultValue = "10") int size)
-    {
-        Page<Communication> communication = communicationService.getCommunicationsByUserId(userId,page,size);
-        if(communication.isEmpty())
-        {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ResponseDTO("No communication Found"));
-        }
+    public ResponseEntity<?> getCommunicationByUserId(
+        @PathVariable("userId") String userId,  // String not long
+        @RequestParam(name = "page", defaultValue = "0") int page,
+        @RequestParam(name = "size", defaultValue = "10") int size) {
+    Page<Communication> communication = communicationService
+            .getCommunicationsByUserId(userId, page, size);
+    if (communication.isEmpty()) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ResponseDTO("No communication Found"));
+    }
         return ResponseEntity.ok().body(communication);
     }
 

@@ -8,5 +8,5 @@ import java.time.LocalDateTime;
 public class InvestigateUpdateStatusDTO { //A
     private String status;
     private Double recommendedAmount;
-    private String recommendedBy;
+    //private String recommendedBy;
 }
