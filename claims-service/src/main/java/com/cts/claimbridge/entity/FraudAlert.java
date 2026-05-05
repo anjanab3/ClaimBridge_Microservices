@@ -21,6 +21,7 @@ public class FraudAlert {
     @JsonBackReference(value = "alert") //A
     private Claim claim; //A
     private String reason;
+    private String assignedTo;          // e.g. FA-0001
     private String escalatedTo;
 
     private LocalDateTime escalatedAt;

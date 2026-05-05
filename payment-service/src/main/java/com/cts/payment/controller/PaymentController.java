@@ -3,6 +3,7 @@ package com.cts.payment.controller;
 import com.cts.payment.dto.ResponseDTO;
 import com.cts.payment.dto.SettlementSyncDTO;
 import com.cts.payment.entity.Payment;
+import com.cts.payment.entity.Settlement;
 import com.cts.payment.service.PaymentService;
 import com.cts.payment.service.SettlementService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,7 +30,7 @@ public class PaymentController {
     @PostMapping("/receive")
     public ResponseEntity<?> receiveSettlement(@RequestBody SettlementSyncDTO dto) {
         try {
-            Payment saved = settlementService.receiveSettlement(dto);
+            Settlement saved = settlementService.receiveSettlement(dto);
             return ResponseEntity.ok(saved);
         } catch (Exception e) {
             return ResponseEntity.badRequest()
@@ -53,15 +54,11 @@ public class PaymentController {
         }
     }
 
-    // Get all payments — payout officer overview
+    // Get all payments (from payment table) — paginated
    // @PreAuthorize("hasAuthority('PAYOUT_OFFICER')")
     @GetMapping
     public ResponseEntity<?> getAllPayments() {
-        List<Payment> payments = settlementService.getAllSettlements();
-        if (payments.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new ResponseDTO("No Payments Found"));
-        }
+        List<Payment> payments = paymentService.getAllPayments(0, 100).getContent();
         return ResponseEntity.ok(payments);
     }
 
@@ -70,12 +67,12 @@ public class PaymentController {
     @GetMapping("/claim/{claimId}")
     public ResponseEntity<?> getPaymentByClaim(
             @PathVariable("claimId") Long claimId) {
-        Optional<Payment> payment = settlementService.getSettlementsByClaim(claimId);
-        if (payment.isEmpty()) {
+        Optional<Settlement> settlement = settlementService.getSettlementsByClaim(claimId);
+        if (settlement.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new ResponseDTO("No Payment Found for claimId: " + claimId));
         }
-        return ResponseEntity.ok(payment.get());
+        return ResponseEntity.ok(settlement.get());
     }
 
     // Initiate payment against a settlement

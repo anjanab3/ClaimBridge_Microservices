@@ -2,7 +2,7 @@ package com.cts.payment.controller;
 
 import com.cts.payment.dto.ResponseDTO;
 import com.cts.payment.dto.SettlementSyncDTO;
-import com.cts.payment.entity.Payment;
+import com.cts.payment.entity.Settlement;
 import com.cts.payment.service.SettlementService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -25,7 +25,7 @@ public class SettlementController {
     @PostMapping("/receive")
     public ResponseEntity<?> receiveSettlement(@RequestBody SettlementSyncDTO dto) {
         try {
-            Payment saved = settlementService.receiveSettlement(dto);
+            Settlement saved = settlementService.receiveSettlement(dto);
             return ResponseEntity.ok(saved);
         } catch (Exception e) {
             return ResponseEntity.badRequest()
@@ -33,29 +33,25 @@ public class SettlementController {
         }
     }
 
-    // Get all payments — payout officer overview
+    // Get all settlements — payout officer overview
     //@PreAuthorize("hasAuthority('PAYOUT_OFFICER')")
     @GetMapping
     public ResponseEntity<?> getAllSettlements() {
-        List<Payment> payments = settlementService.getAllSettlements();
-        if (payments.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new ResponseDTO("No Settlements Found"));
-        }
-        return ResponseEntity.ok(payments);
+        List<Settlement> settlements = settlementService.getAllSettlements();
+        return ResponseEntity.ok(settlements);
     }
 
-    // Get payment by claimId
+    // Get settlement by claimId
     //@PreAuthorize("hasAuthority('PAYOUT_OFFICER')")
     @GetMapping("/claim/{claimId}")
     public ResponseEntity<?> getSettlementByClaim(
             @PathVariable("claimId") Long claimId) {
-        Optional<Payment> payment = settlementService.getSettlementsByClaim(claimId);
-        if (payment.isEmpty()) {
+        Optional<Settlement> settlement = settlementService.getSettlementsByClaim(claimId);
+        if (settlement.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new ResponseDTO("No Settlement Found for claimId: " + claimId));
         }
-        return ResponseEntity.ok(payment.get());
+        return ResponseEntity.ok(settlement.get());
     }
 
     // Approve or reject settlement

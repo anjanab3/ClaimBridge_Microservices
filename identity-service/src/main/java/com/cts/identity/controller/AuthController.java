@@ -6,7 +6,6 @@ import com.cts.identity.dto.CreateUserRequestDTO;
 import com.cts.identity.dto.MessageDTO;
 import com.cts.identity.dto.PasswordChangeDTO;
 import com.cts.identity.dto.ResponseDTO;
-import com.cts.identity.entity.PolicyHolder;
 import com.cts.identity.entity.User;
 import com.cts.identity.security.JwtService;
 import com.cts.identity.service.AuthService;
@@ -41,6 +40,17 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponseDTO(jwtService.generateToken(user)));
     }
 
+    /**
+     * Public self-registration — no auth required.
+     * Only USER role is permitted; admin creates other roles via /register.
+     */
+    @PostMapping("/register/public")
+    public ResponseEntity<?> registerPublic(@RequestBody CreateUserRequestDTO req) {
+        // Force USER role — prevent privilege escalation via self-registration
+        req.setRole(com.cts.identity.util.Role.USER);
+        return register(req);
+    }
+
     @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody CreateUserRequestDTO req) {
@@ -58,9 +68,7 @@ public class AuthController {
             user.setRole(req.getRole());
             user.setStatus(UserStatus.ACTIVE);
             if (req.getHolderId() != null) {
-                PolicyHolder ph = new PolicyHolder();
-                ph.setHolderId(req.getHolderId());
-                user.setPolicyHolder(ph);
+                user.setHolderId(req.getHolderId());
             }
             return ResponseEntity.ok(new MessageDTO(authService.save(user), "User created successfully"));
         } catch (RuntimeException e) {

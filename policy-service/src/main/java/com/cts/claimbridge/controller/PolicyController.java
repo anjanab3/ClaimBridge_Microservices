@@ -40,18 +40,12 @@ public ResponseEntity<?> getByNumber(@RequestParam String number) {
     }
 
     // Get all policies
-    //@PreAuthorize("hasAnyAuthority('USER','ADMIN')")
     @GetMapping
     public ResponseEntity<?> getAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        Page<Policy> policies = policyService.findAll(page , size);
-        if(policies.isEmpty())
-        {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ResponseDTO("No policies found"));
-        }
-
+        Page<Policy> policies = policyService.findAll(page, size);
         return ResponseEntity.ok().body(policies);
     }
 

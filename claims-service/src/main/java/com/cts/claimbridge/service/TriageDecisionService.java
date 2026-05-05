@@ -1,20 +1,21 @@
 package com.cts.claimbridge.service;
 
+import com.cts.claimbridge.client.IdentityServiceClient;
 import com.cts.claimbridge.dto.TriageDecisionRequestDTO;
 import com.cts.claimbridge.dto.TriageDecisionResponseDTO;
+import com.cts.claimbridge.dto.TriageRuleDTO;
 import com.cts.claimbridge.entity.Claim;
 import com.cts.claimbridge.entity.FraudAlert;
 import com.cts.claimbridge.entity.TriageDecision;
-import com.cts.claimbridge.entity.TriageRule;
 import com.cts.claimbridge.repository.ClaimRepository;
 import com.cts.claimbridge.repository.FraudAlertRepository;
 import com.cts.claimbridge.repository.TriageDecisionRepository;
-import com.cts.claimbridge.repository.TriageRuleRepository;
-import com.cts.claimbridge.repository.UserRepository;
 import com.cts.claimbridge.util.ClaimStatus;
 import com.cts.claimbridge.util.Priority;
 import com.cts.claimbridge.util.TriageStatus;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import feign.FeignException;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,54 +34,40 @@ import java.util.stream.Collectors;
 @Service
 public class TriageDecisionService {
 
-    @Autowired
-    private TriageDecisionRepository decisionRepository;
+    @Autowired private TriageDecisionRepository decisionRepository;
+    @Autowired private IdentityServiceClient    identityServiceClient;
+    @Autowired private ClaimRepository          claimRepository;
+    @Autowired private FraudAlertRepository     fraudAlertRepository;
 
-    @Autowired
-    private TriageRuleRepository ruleRepository;
-
-    @Autowired
-    private ClaimRepository claimRepository;
-
-    @Autowired
-    private FraudAlertRepository fraudAlertRepository;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    // Create a triage decision for a claim by applying a rule
+    // ── Create a triage decision ─────────────────────────────────────────────
     public TriageDecisionResponseDTO createDecision(TriageDecisionRequestDTO request) {
 
-        // Validate claim exists
         if (!claimRepository.existsById(request.getClaimId()))
             throw new EntityNotFoundException("Claim not found for ID: " + request.getClaimId());
 
-        // update claim status to IN_PROGRESS
+        // Update claim status to IN_REVIEW
         Optional<Claim> claim = claimRepository.findById(request.getClaimId());
         claim.get().setStatus(ClaimStatus.IN_REVIEW);
         claimRepository.save(claim.get());
 
-        // update the triage decision as ESCALATED
-        Optional<TriageDecision> triagedecision = decisionRepository.findTopByClaimIdOrderByAssignedAtDesc(request.getClaimId());
-        if (triagedecision.isPresent()) {
-            triagedecision.get().setStatus(TriageStatus.ESCALATED);
-            decisionRepository.save(triagedecision.get());
+        // Escalate any existing open decision
+        Optional<TriageDecision> existing = decisionRepository.findTopByClaimIdOrderByAssignedAtDesc(request.getClaimId());
+        if (existing.isPresent()) {
+            existing.get().setStatus(TriageStatus.ESCALATED);
+            decisionRepository.save(existing.get());
         }
 
-        // Validate rule exists and is active
-        TriageRule rule = ruleRepository.findById(request.getRuleId())
-                .orElseThrow(() -> new EntityNotFoundException("Triage Rule not found for ID: " + request.getRuleId()));
+        // Fetch rule from identity-service via Feign
+        TriageRuleDTO rule;
+        try {
+            rule = identityServiceClient.getRuleById(request.getRuleId());
+        } catch (FeignException.NotFound e) {
+            throw new EntityNotFoundException("Triage Rule not found for ID: " + request.getRuleId());
+        }
         if (Boolean.FALSE.equals(rule.getActive()))
-            throw new IllegalStateException("Triage Rule ID " + request.getRuleId() + " is not active and cannot be applied");
+            throw new IllegalStateException("Triage Rule ID " + request.getRuleId() + " is not active");
 
-        // Validate role_code if provided — must exist in user table
-        if (request.getAssignedTo() != null && !request.getAssignedTo().isBlank()) {
-            userRepository.findByRoleCode(request.getAssignedTo())
-                    .orElseThrow(() -> new EntityNotFoundException(
-                            "No user found with role_code: " + request.getAssignedTo()));
-        }
-
-        // Prevent duplicate — if claim is already in the same queue, reject
+        // Prevent duplicate queue assignment
         decisionRepository.findTopByClaimIdOrderByAssignedAtDesc(request.getClaimId())
                 .ifPresent(latest -> {
                     if (latest.getAssignedQueue() != null &&
@@ -89,35 +77,31 @@ public class TriageDecisionService {
                     }
                 });
 
+        // Default assignee based on queue — CA-0001 for adjuster, FA-0001 for fraud
+        String assignedTo = request.getAssignedTo();
+        if (assignedTo == null || assignedTo.isBlank()) {
+            assignedTo = "FRAUD".equalsIgnoreCase(rule.getAssignedQueue()) ? "FA-0001" : "CA-0001";
+        }
+
         TriageDecision decision = new TriageDecision();
         decision.setClaimId(request.getClaimId());
         decision.setRuleId(request.getRuleId());
-        decision.setPriority(rule.getPriority());           // auto from rule
-        decision.setAssignedQueue(rule.getAssignedQueue()); // auto from rule
-        decision.setAssignedTo(request.getAssignedTo());    // role_code from request
-        decision.setStatus(TriageStatus.OPEN);              // default on create
+        decision.setPriority(rule.getPriority());
+        decision.setAssignedQueue(rule.getAssignedQueue());
+        decision.setAssignedTo(assignedTo);
+        decision.setStatus(TriageStatus.OPEN);
         decision.setAssignedAt(LocalDateTime.now());
 
         TriageDecision saved = decisionRepository.save(decision);
 
-        // auto-store report on claim allocation
-        Map<String, Object> allocationParams = new LinkedHashMap<>();
-        allocationParams.put("claimId", saved.getClaimId());
-        allocationParams.put("assignedQueue", saved.getAssignedQueue());
-        allocationParams.put("assignedTo", saved.getAssignedTo());
-        allocationParams.put("priority", saved.getPriority() != null ? saved.getPriority().name() : null);
-        allocationParams.put("ruleId", saved.getRuleId());
-        allocationParams.put("allocatedAt", saved.getAssignedAt().toString());
-        //reportingService.recordEvent("CLAIM_ALLOCATION", allocationParams);
-
-        // If routed to FRAUD queue — automatically create a FraudAlert (if one doesn't already exist)
+        // Auto-create FraudAlert if routed to FRAUD queue
         if ("FRAUD".equalsIgnoreCase(saved.getAssignedQueue())) {
             boolean alertExists = !fraudAlertRepository.findByClaim_ClaimId(saved.getClaimId()).isEmpty();
             if (!alertExists) {
                 FraudAlert alert = new FraudAlert();
-                Optional<Claim> claimresponse = claimRepository.findById(saved.getClaimId());
-                alert.setClaim(claimresponse.get());
+                claimRepository.findById(saved.getClaimId()).ifPresent(alert::setClaim);
                 alert.setReason("Claim flagged and routed to FRAUD queue by intake agent");
+                alert.setAssignedTo(saved.getAssignedTo());
                 alert.setStatus("OPEN");
                 fraudAlertRepository.save(alert);
             }
@@ -126,7 +110,67 @@ public class TriageDecisionService {
         return mapToResponseDTO(saved, "Triage decision created and claim assigned successfully");
     }
 
-    // Get all decisions ever made for a claim
+    // ── Suggest the best matching rule for a claim ───────────────────────────
+    public TriageRuleDTO suggestRuleForClaim(Long claimId) {
+        Claim claim = claimRepository.findById(claimId)
+                .orElseThrow(() -> new EntityNotFoundException("Claim not found for ID: " + claimId));
+
+        // Get all active rules from identity-service via Feign
+        List<TriageRuleDTO> activeRules = identityServiceClient.getActiveRules()
+                .stream()
+                .filter(r -> !Boolean.TRUE.equals(r.getIsDefault()))
+                .collect(Collectors.toList());
+
+        ObjectMapper om = new ObjectMapper();
+
+        for (TriageRuleDTO rule : activeRules) {
+            try {
+                String json = rule.getConditionsJSON();
+                if (json == null || json.isBlank()) continue;
+
+                @SuppressWarnings("unchecked")
+                Map<String, Object> conditions = om.readValue(json, Map.class);
+                if (conditions.isEmpty()) continue;
+
+                // Match lossType
+                String requiredType = (String) conditions.get("lossType");
+                if (requiredType != null && !requiredType.isBlank()
+                        && !requiredType.equalsIgnoreCase(claim.getLossType())) continue;
+
+                // Match amount range (amountMin / amountMax)
+                double amount = claim.getEstimatedAmount() != null ? claim.getEstimatedAmount() : 0.0;
+                Object minObj = conditions.get("amountMin");
+                Object maxObj = conditions.get("amountMax");
+                if (minObj != null && amount < ((Number) minObj).doubleValue()) continue;
+                if (maxObj != null && amount > ((Number) maxObj).doubleValue()) continue;
+
+                // Match amount with operator string e.g. ">=10000"
+                String amountCond = (String) conditions.get("amount");
+                if (amountCond != null && !amountCond.isBlank()) {
+                    amountCond = amountCond.trim();
+                    if      (amountCond.startsWith(">=") && amount <  Double.parseDouble(amountCond.substring(2))) continue;
+                    else if (amountCond.startsWith("<=") && amount >  Double.parseDouble(amountCond.substring(2))) continue;
+                    else if (amountCond.startsWith(">")  && amount <= Double.parseDouble(amountCond.substring(1))) continue;
+                    else if (amountCond.startsWith("<")  && amount >= Double.parseDouble(amountCond.substring(1))) continue;
+                    else if (amountCond.startsWith("=")  && amount != Double.parseDouble(amountCond.substring(1))) continue;
+                }
+
+                return rule; // first match wins
+            } catch (Exception ignored) {
+                // Malformed conditionsJSON — skip
+            }
+        }
+
+        // Fallback: default rule from identity-service
+        try {
+            return identityServiceClient.getDefaultRule();
+        } catch (FeignException.NotFound e) {
+            throw new EntityNotFoundException(
+                    "No matching rule found and no default rule is configured. Please contact an admin.");
+        }
+    }
+
+    // ── Get all decisions for a claim ────────────────────────────────────────
     public List<TriageDecisionResponseDTO> getDecisionsByClaimId(Long claimId) {
         List<TriageDecision> decisions = decisionRepository.findByClaim_ClaimId(claimId);
         if (decisions.isEmpty())
@@ -134,20 +178,20 @@ public class TriageDecisionService {
         return decisions.stream().map(d -> mapToResponseDTO(d, null)).collect(Collectors.toList());
     }
 
-    // Get the most recent triage decision for a claim
+    // ── Get latest decision for a claim ──────────────────────────────────────
     public TriageDecisionResponseDTO getLatestDecision(Long claimId) {
         return decisionRepository.findTopByClaimIdOrderByAssignedAtDesc(claimId)
                 .map(d -> mapToResponseDTO(d, null))
                 .orElseThrow(() -> new EntityNotFoundException("No triage decision found for Claim ID: " + claimId));
     }
 
-    // Get claims currently in a queue — only those whose LATEST decision is in that queue (paginated)
+    // ── Get paginated decisions by queue ─────────────────────────────────────
     public Page<TriageDecisionResponseDTO> getDecisionsByAssignee(String assignedQueue, Pageable pageable) {
         return decisionRepository.findLatestByAssignedQueue(assignedQueue, pageable)
                 .map(d -> mapToResponseDTO(d, null));
     }
 
-    // Get decisions filtered by priority
+    // ── Get decisions by priority ─────────────────────────────────────────────
     public List<TriageDecisionResponseDTO> getDecisionsByPriority(String priority) {
         Priority priorityEnum = Priority.valueOf(priority.toUpperCase());
         List<TriageDecision> decisions = decisionRepository.findByPriority(priorityEnum);
@@ -156,49 +200,42 @@ public class TriageDecisionService {
         return decisions.stream().map(d -> mapToResponseDTO(d, null)).collect(Collectors.toList());
     }
 
-    // Update an existing decision — re-applies the rule's current priority and assignedQueue
+    // ── Update an existing decision ───────────────────────────────────────────
     public TriageDecisionResponseDTO updateDecision(Long decisionId, TriageDecisionRequestDTO request) {
         TriageDecision decision = decisionRepository.findById(decisionId)
                 .orElseThrow(() -> new EntityNotFoundException("Triage Decision not found for ID: " + decisionId));
 
-        // If a new ruleId is provided, switch to that rule; otherwise keep the existing one
         Long ruleIdToUse = request.getRuleId() != null ? request.getRuleId() : decision.getRuleId();
-        TriageRule rule = ruleRepository.findById(ruleIdToUse)
-                .orElseThrow(() -> new EntityNotFoundException("Triage Rule not found for ID: " + ruleIdToUse));
+
+        // Fetch updated rule from identity-service
+        TriageRuleDTO rule;
+        try {
+            rule = identityServiceClient.getRuleById(ruleIdToUse);
+        } catch (FeignException.NotFound e) {
+            throw new EntityNotFoundException("Triage Rule not found for ID: " + ruleIdToUse);
+        }
         if (Boolean.FALSE.equals(rule.getActive()))
-            throw new IllegalStateException("Triage Rule ID " + ruleIdToUse + " is not active and cannot be applied");
+            throw new IllegalStateException("Triage Rule ID " + ruleIdToUse + " is not active");
 
         decision.setRuleId(ruleIdToUse);
-        decision.setPriority(rule.getPriority());              // auto from rule
-        decision.setAssignedQueue(rule.getAssignedQueue());    // auto from rule
-        // assigned_to (role_code) updated only if provided in request
+        decision.setPriority(rule.getPriority());
+        decision.setAssignedQueue(rule.getAssignedQueue());
+
         if (request.getAssignedTo() != null && !request.getAssignedTo().isBlank()) {
-            userRepository.findByRoleCode(request.getAssignedTo())
-                    .orElseThrow(() -> new EntityNotFoundException(
-                            "No user found with role_code: " + request.getAssignedTo()));
             decision.setAssignedTo(request.getAssignedTo());
+        } else if (decision.getAssignedTo() == null || decision.getAssignedTo().isBlank()) {
+            decision.setAssignedTo("FRAUD".equalsIgnoreCase(decision.getAssignedQueue()) ? "FA-0001" : "CA-0001");
         }
-        // status updated only if provided — manual transition
-        if (request.getStatus() != null ) {
+        if (request.getStatus() != null) {
             decision.setStatus(request.getStatus());
         }
         decision.setAssignedAt(LocalDateTime.now());
         TriageDecision updated = decisionRepository.save(decision);
 
-        // auto-store report on re-allocation
-        Map<String, Object> reAllocParams = new LinkedHashMap<>();
-        reAllocParams.put("claimId", updated.getClaimId());
-        reAllocParams.put("assignedQueue", updated.getAssignedQueue());
-        reAllocParams.put("assignedTo", updated.getAssignedTo());
-        reAllocParams.put("priority", updated.getPriority() != null ? updated.getPriority().name() : null);
-        reAllocParams.put("ruleId", updated.getRuleId());
-        reAllocParams.put("allocatedAt", updated.getAssignedAt().toString());
-        //reportingService.recordEvent("CLAIM_ALLOCATION", reAllocParams);
-
         return mapToResponseDTO(updated, "Triage decision updated successfully");
     }
 
-    // Private mapper
+    // ── Private mapper ────────────────────────────────────────────────────────
     private TriageDecisionResponseDTO mapToResponseDTO(TriageDecision decision, String message) {
         return TriageDecisionResponseDTO.builder()
                 .decisionId(decision.getDecisionId())
@@ -212,5 +249,4 @@ public class TriageDecisionService {
                 .message(message)
                 .build();
     }
-
 }

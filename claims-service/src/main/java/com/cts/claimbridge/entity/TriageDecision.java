@@ -35,8 +35,4 @@ public class TriageDecision {
     @JsonBackReference(value = "triage")
     private Claim claim;
 
-    @ManyToOne
-    @JoinColumn(name = "ruleId", insertable = false, updatable = false)
-    @JsonBackReference(value = "rule")
-    private TriageRule triageRule;
 }

@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
-@CrossOrigin
 @RestController
 @RequestMapping("/api/policyholders")
 @RequiredArgsConstructor
@@ -25,17 +24,15 @@ public class PolicyHolderController {
     @Autowired
     private PolicyHolderService holderService;
 
-    // @Autowired
-    // private ClaimService claimService;
-
-    // create policyHolder
+    // create policyHolder (single object from the admin form)
     @PostMapping
     @PreAuthorize("hasAuthority('ADMIN')")
-    public ResponseEntity<?> createHolder(@RequestBody List<PolicyHolder> holder) {
+    public ResponseEntity<?> createHolder(@RequestBody PolicyHolder holder) {
         try {
-            return ResponseEntity.ok().body(new MessageDTO(holderService.save(holder), "PolicyHolder added sucessfully!!!"));
+            PolicyHolder saved = holderService.saveOne(holder);
+            return ResponseEntity.ok().body(saved);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new ResponseDTO("Policy holder creation failed!!!"));
+            return ResponseEntity.badRequest().body(new ResponseDTO("Policy holder creation failed: " + e.getMessage()));
         }
     }
 
@@ -51,16 +48,12 @@ public class PolicyHolderController {
     }
 
     // Get all policyholders
-    //@PreAuthorize("hasAuthority('ADMIN')")
     @GetMapping
     public ResponseEntity<?> getAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
         Page<PolicyHolder> policyholders = holderService.findAll(page, size);
-        if (policyholders.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ResponseDTO("No Holder Found"));
-        }
         return ResponseEntity.ok().body(policyholders);
     }
 

@@ -14,4 +14,5 @@ public interface TriageRuleRepository extends JpaRepository<TriageRule, Long> {
     List<TriageRule> findByAssignedQueue(String assignedQueue);
     List<TriageRule> findByPriority(Priority priority);
     Optional<TriageRule> findByIsDefaultTrue();
+    List<TriageRule> findByActiveAndIsDefault(Boolean active, Boolean isDefault);
 }

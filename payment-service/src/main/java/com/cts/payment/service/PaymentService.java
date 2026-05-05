@@ -3,6 +3,7 @@ package com.cts.payment.service;
 import com.cts.payment.client.ClaimsServiceClient;
 import com.cts.payment.entity.Payment;
 import com.cts.payment.repository.PaymentRepository;
+import com.cts.payment.repository.SettlementRepository;
 import com.cts.payment.util.PaymentStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -20,6 +21,8 @@ public class PaymentService {
     @Autowired
     private PaymentRepository paymentRepository;
     @Autowired
+    private SettlementRepository settlementRepository;
+    @Autowired
     private ClaimsServiceClient claimsServiceClient;
 
     public Payment initiatePayment(Long settlementId, Payment payment) {
@@ -27,17 +30,17 @@ public class PaymentService {
             throw new IllegalStateException("Payment for settlement ID "
                     + settlementId + " has already been initiated.");
         }
-        // Update existing pre-created payment record from receiveSettlement
-        Payment existing = paymentRepository.findBySettlementId(settlementId)
-                .orElse(payment);
-        existing.setSettlementId(settlementId);
-        existing.setPayee(payment.getPayee());
-        existing.setAmount(payment.getAmount());
-        existing.setMethod(payment.getMethod());
-        existing.setScheduledDate(payment.getScheduledDate());
-        existing.setReference(payment.getReference());
-        existing.setStatus(PaymentStatus.INITIATED);
-        return paymentRepository.save(existing);
+
+        // Resolve claimId from the Settlement table
+        Long claimId = settlementRepository.findById(settlementId)
+                .map(s -> s.getClaimId())
+                .orElseThrow(() -> new RuntimeException(
+                        "No settlement found for settlementId: " + settlementId));
+
+        payment.setSettlementId(settlementId);
+        payment.setClaimId(claimId);
+        payment.setStatus(PaymentStatus.INITIATED);
+        return paymentRepository.save(payment);
     }
 
     public Optional<Payment> getPaymentBySettlement(Long settlementId) {

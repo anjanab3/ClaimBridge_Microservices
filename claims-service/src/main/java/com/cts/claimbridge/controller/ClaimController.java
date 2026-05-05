@@ -21,7 +21,6 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/claims")
 @RequiredArgsConstructor
-@CrossOrigin
 public class ClaimController {
 
     @Autowired
@@ -67,18 +66,14 @@ public class ClaimController {
         }
     }
 
-    // ── Get all claims — intake agent ──
-    @PreAuthorize("hasAnyAuthority('CLAIMS_INTAKE_AGENT','ADMIN')")
+    // ── Get all claims — intake agent / fraud analyst ──
+    @PreAuthorize("hasAnyAuthority('CLAIMS_INTAKE_AGENT','ADMIN','FRAUD_ANALYST')")
     @GetMapping
     public ResponseEntity<?> getAllClaims(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
         Page<Claim> allClaims = claimService.findAllClaims(page, size);
-        if (allClaims.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new ResponseDTO("No Claims Found"));
-        }
         return ResponseEntity.ok().body(allClaims);
     }
 
@@ -102,15 +97,11 @@ public class ClaimController {
             @RequestParam(defaultValue = "10") int size) {
 
         Page<Claim> claims = claimService.getIncomingClaims(page, size);
-        if (claims.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new ResponseDTO("No Incoming Claims Found"));
-        }
         return ResponseEntity.ok().body(claims);
     }
 
     // ── Get a specific claim by claimId ──
-    @PreAuthorize("hasAnyAuthority('USER','CLAIMS_INTAKE_AGENT','ADMIN')")
+    @PreAuthorize("hasAnyAuthority('USER','CLAIMS_INTAKE_AGENT','ADMIN','FRAUD_ANALYST')")
     @GetMapping("/{claimId}")
     public ResponseEntity<?> getClaim(@PathVariable Long claimId) {
         Optional<Claim> claim = claimService.findById(claimId);
@@ -156,10 +147,6 @@ public class ClaimController {
             Page<Claim> claims = claimService.findByStatus(
                 ClaimStatus.valueOf(status.toUpperCase()), page, size
             );
-            if (claims.isEmpty()) {
-                return ResponseEntity.ok()
-                        .body(new ResponseDTO("No claims found with status: " + status));
-            }
             return ResponseEntity.ok().body(claims);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest()

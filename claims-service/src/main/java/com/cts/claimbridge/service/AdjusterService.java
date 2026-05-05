@@ -3,7 +3,10 @@ package com.cts.claimbridge.service;
 import com.cts.claimbridge.client.PolicyServiceClient;
 import com.cts.claimbridge.dto.*;
 import com.cts.claimbridge.entity.*;
-import com.cts.claimbridge.repository.*;
+import com.cts.claimbridge.repository.ClaimRepository;
+import com.cts.claimbridge.repository.EvidenceRepository;
+import com.cts.claimbridge.repository.InvestigationRepository;
+import com.cts.claimbridge.repository.TriageDecisionRepository;
 import com.cts.claimbridge.util.InvestigationStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
@@ -26,17 +29,10 @@ public class AdjusterService {
     @Autowired
     private EvidenceRepository evidenceRepo;
     @Autowired
-    private UserRepository userRepository;
-    @Autowired
     private PolicyServiceClient policyServiceClient;
 
     public Page<ClaimFullResponseDTO> getAssignedClaims(String adjusterId, int page, int size) {
         List<TriageDecision> decisions = triageRepo.findByAssignedTo(adjusterId);
-
-        Optional<User> adjuster = userRepository.findByRoleCode(adjusterId);
-        if (adjuster.isEmpty()) {
-            throw new RuntimeException("No Adjuster Found");
-        }
 
         List<ClaimFullResponseDTO> resultList = decisions.stream()
                 .map(decision -> {

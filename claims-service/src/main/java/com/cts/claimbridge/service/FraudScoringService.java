@@ -1,7 +1,9 @@
 package com.cts.claimbridge.service;
 
+import com.cts.claimbridge.client.IdentityServiceClient;
 import com.cts.claimbridge.client.PolicyServiceClient;
 import com.cts.claimbridge.dto.FraudScoringResultDTO;
+import com.cts.claimbridge.dto.TriageRuleDTO;
 import com.cts.claimbridge.dto.PolicyDTO;
 import com.cts.claimbridge.entity.*;
 import com.cts.claimbridge.repository.*;
@@ -38,7 +40,7 @@ public class FraudScoringService {
     @Autowired private FraudScoreRepository     fraudScoreRepository;
     @Autowired private FraudAlertRepository     fraudAlertRepository;
     @Autowired private ClaimRepository          claimRepository;
-    @Autowired private TriageRuleRepository     triageRuleRepository;
+    @Autowired private IdentityServiceClient    identityServiceClient;
     @Autowired private TriageDecisionRepository triageDecisionRepository;
     @Autowired private PolicyServiceClient      policyServiceClient;
 
@@ -168,9 +170,10 @@ public class FraudScoringService {
         score.setFraudAlert(savedAlert);
         score.setClaim(claim);
 
-        List<TriageRule> fraudRules = triageRuleRepository.findByAssignedQueue("FRAUD");
+        // Fetch FRAUD rules from identity-service via Feign
+        List<TriageRuleDTO> fraudRules = identityServiceClient.getRulesByQueue("FRAUD");
         if (!fraudRules.isEmpty()) {
-            TriageRule rule = fraudRules.get(0);
+            TriageRuleDTO rule = fraudRules.get(0);
             boolean alreadyQueued = triageDecisionRepository
                     .findTopByClaimIdOrderByAssignedAtDesc(claim.getClaimId())
                     .map(d -> "FRAUD".equalsIgnoreCase(d.getAssignedQueue()))
@@ -179,7 +182,7 @@ public class FraudScoringService {
             if (!alreadyQueued) {
                 TriageDecision decision = new TriageDecision();
                 decision.setClaimId(claim.getClaimId());
-                decision.setRuleId(rule.getRuleID());
+                decision.setRuleId(rule.getRuleId());
                 decision.setPriority(rule.getPriority());
                 decision.setAssignedQueue("FRAUD");
                 decision.setStatus(TriageStatus.OPEN);

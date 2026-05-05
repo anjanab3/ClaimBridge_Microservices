@@ -9,14 +9,34 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-@CrossOrigin
 @RestController
 @RequestMapping("/api/identity/users")
 public class UserController {
 
     @Autowired private UserService userService;
+
+    /** Returns active users for a given role — used by fraud analyst adjuster dropdown */
+    @GetMapping("/by-role")
+    public ResponseEntity<?> getUsersByRole(@RequestParam String role) {
+        try {
+            return ResponseEntity.ok(userService.findActiveByRole(role));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(new ResponseDTO("Unknown role: " + role));
+        }
+    }
+
+    /** Returns the currently authenticated user's profile (any role) */
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser(Authentication authentication) {
+        try {
+            return ResponseEntity.ok(userService.findUserByUsername(authentication.getName()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ResponseDTO(e.getMessage()));
+        }
+    }
 
     @PreAuthorize("hasAuthority('ADMIN')")
     @GetMapping

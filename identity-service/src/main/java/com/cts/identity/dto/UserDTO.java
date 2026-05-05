@@ -12,4 +12,5 @@ public class UserDTO {
     private String phone;
     private String role;
     private String status;
+    private Long holderId;   // non-null only for USER (policyholder) accounts
 }

@@ -1,7 +1,13 @@
 package com.cts.claimbridge.service;
 
+import com.cts.claimbridge.client.IdentityServiceClient;
+import com.cts.claimbridge.dto.TriageRuleDTO;
+import feign.FeignException;
 import com.cts.claimbridge.entity.*;
-import com.cts.claimbridge.repository.*;
+import com.cts.claimbridge.repository.ClaimRepository;
+import com.cts.claimbridge.repository.FraudAlertRepository;
+import com.cts.claimbridge.repository.FraudScoreRepository;
+import com.cts.claimbridge.repository.TriageDecisionRepository;
 import com.cts.claimbridge.util.ClaimStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,8 +22,6 @@ import com.cts.claimbridge.dto.FraudAnalystRequestDTO;
 import com.cts.claimbridge.dto.FraudAnalystResponseDTO;
 
 import jakarta.persistence.EntityNotFoundException;
-
-import javax.swing.text.html.Option;
 
 @Service
 public class FraudAnalystService {
@@ -35,10 +39,7 @@ public class FraudAnalystService {
     private TriageDecisionRepository decisionRepository;
 
     @Autowired
-    private TriageRuleRepository ruleRepository;
-
-    @Autowired
-    private UserRepository userRepository;
+    private IdentityServiceClient identityServiceClient;
 
     // Get active fraud alerts only (OPEN, IN_PROGRESS, ESCALATED) — paginated
     // Excludes closed cases: REASSIGNED, RESOLVED, FRAUD
@@ -157,13 +158,7 @@ public class FraudAnalystService {
         FraudAlert alert = alertRepository.findById(alertId)
                 .orElseThrow(() -> new EntityNotFoundException("Fraud Alert not found for ID: " + alertId));
 
-        // Validate the provided adjuster role_code exists in user table
         String adjusterRoleCode = request.getAssignedTo();
-        if (adjusterRoleCode != null && !adjusterRoleCode.isBlank()) {
-            userRepository.findByRoleCode(adjusterRoleCode)
-                    .orElseThrow(() -> new EntityNotFoundException(
-                            "No user found with role_code: " + adjusterRoleCode));
-        }
 
         alert.setStatus("REASSIGNED");
         alertRepository.save(alert);
@@ -189,9 +184,15 @@ public class FraudAnalystService {
     // Creates a new TriageDecision routing the claim to the ADJUSTER queue
     // adjusterRoleCode: role_code of the specific adjuster (e.g. CA-001), or null for generic queue
     private void routeToAdjuster(FraudAlert alert, String adjusterRoleCode) {
-        TriageRule defaultRule = ruleRepository.findByIsDefaultTrue()
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "No default rule configured. Cannot route claim to ADJUSTER."));
+        // Fetch default rule from identity-service via Feign
+        TriageRuleDTO defaultRule;
+        try {
+            defaultRule = identityServiceClient.getDefaultRule();
+        } catch (FeignException e) {
+            throw new EntityNotFoundException(
+                "Cannot route claim to ADJUSTER: failed to fetch default triage rule " +
+                "(identity-service returned " + e.status() + "). Ensure identity-service is running.");
+        }
 
         // Prevent duplicate — skip if claim is already in ADJUSTER queue
         boolean alreadyAssigned = decisionRepository
@@ -204,10 +205,10 @@ public class FraudAnalystService {
 
         TriageDecision decision = new TriageDecision();
         decision.setClaimId(alert.getClaim().getClaimId());
-        decision.setRuleId(defaultRule.getRuleID());
+        decision.setRuleId(defaultRule.getRuleId());
         decision.setPriority(defaultRule.getPriority());
-        decision.setAssignedQueue("ADJUSTER");       // queue name
-        decision.setAssignedTo(adjusterRoleCode);    // specific adjuster role_code e.g. CA-001 (can be null)
+        decision.setAssignedQueue("ADJUSTER");
+        decision.setAssignedTo(adjusterRoleCode != null && !adjusterRoleCode.isBlank() ? adjusterRoleCode : "CA-0001");
         decision.setStatus(TriageStatus.OPEN);
         decision.setAssignedAt(LocalDateTime.now());
         decisionRepository.save(decision);
