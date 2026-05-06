@@ -39,11 +39,6 @@ public class AdjusterService {
         return new PageImpl<>(List.of(), PageRequest.of(page, size), 0);
     }
 
-    Optional<User> adjuster = userRepository.findByRoleCode(adjusterId);
-    if (adjuster.isEmpty()) {
-        throw new RuntimeException("No Adjuster Found");
-    }
-
     List<ClaimFullResponseDTO> resultList = decisions.stream()
             .map(decision -> {
                 Claim claim = claimRepo.findById(decision.getClaim().getClaimId())
