@@ -7,5 +7,6 @@ import java.util.List;
 @Repository
 public interface SettlementRepository extends JpaRepository<Settlement, Long> {
     List<Settlement> findByClaim_ClaimId(Long claimId);
+    boolean existsByClaim_ClaimId(Long claimId);
 }
 

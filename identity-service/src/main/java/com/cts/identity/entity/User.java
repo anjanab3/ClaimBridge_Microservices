@@ -2,7 +2,6 @@ package com.cts.identity.entity;
 
 import com.cts.identity.util.Role;
 import com.cts.identity.util.UserStatus;
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import lombok.AllArgsConstructor;
@@ -37,8 +36,7 @@ public class User {
     @Enumerated(EnumType.STRING)
     private UserStatus status;
 
-    @ManyToOne(cascade = CascadeType.MERGE)
-    @JoinColumn(name = "holder_id", nullable = true)
-    @JsonBackReference
-    private PolicyHolder policyHolder;
+    // Plain FK — PolicyHolder/Policy are owned by policy-service, not identity-service
+    @Column(name = "holder_id", nullable = true)
+    private Long holderId;
 }

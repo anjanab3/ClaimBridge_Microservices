@@ -40,18 +40,12 @@ public ResponseEntity<?> getByNumber(@RequestParam String number) {
     }
 
     // Get all policies
-    //@PreAuthorize("hasAnyAuthority('USER','ADMIN')")
     @GetMapping
     public ResponseEntity<?> getAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        Page<Policy> policies = policyService.findAll(page , size);
-        if(policies.isEmpty())
-        {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ResponseDTO("No policies found"));
-        }
-
+        Page<Policy> policies = policyService.findAll(page, size);
         return ResponseEntity.ok().body(policies);
     }
 
@@ -71,5 +65,29 @@ public ResponseEntity<?> getByNumber(@RequestParam String number) {
     @GetMapping("/by-holder/{holderId}/ids")
     public List<Long> getPolicyIdsByHolderId(@PathVariable Long holderId) {
         return policyService.findPolicyIdsByHolderId(holderId);
+    }
+
+    /** Update coverage JSON — called by reporting-service underwriter view */
+    @PutMapping("/{policyId}")
+    public ResponseEntity<?> updateCoverage(
+            @PathVariable Long policyId,
+            @RequestBody String coverageJSON) {
+        try {
+            return ResponseEntity.ok(policyService.updateCoverage(policyId, coverageJSON));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(new ResponseDTO(e.getMessage()));
+        }
+    }
+
+    /** Update policy status — called by reporting-service underwriter view */
+    @PatchMapping("/{policyId}/status")
+    public ResponseEntity<?> updateStatus(
+            @PathVariable Long policyId,
+            @RequestParam String status) {
+        try {
+            return ResponseEntity.ok(policyService.updateStatus(policyId, status));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(new ResponseDTO(e.getMessage()));
+        }
     }
 }

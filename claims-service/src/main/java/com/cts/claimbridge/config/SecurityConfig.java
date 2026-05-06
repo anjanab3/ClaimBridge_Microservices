@@ -17,7 +17,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.cts.claimbridge.security.JwtAuthFilter;
-import com.cts.claimbridge.service.AuthService;
 import com.cts.claimbridge.service.JwtService;
 
 @Configuration
@@ -38,9 +37,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    public JwtAuthFilter jwtAuthFilter(JwtService jwtService , AuthService authService)
+    public JwtAuthFilter jwtAuthFilter(JwtService jwtService)
     {
-        return new JwtAuthFilter(jwtService , authService);
+        return new JwtAuthFilter(jwtService);
     }
 
     @Bean
@@ -49,8 +48,6 @@ public SecurityFilterChain filterChain(HttpSecurity http, JwtAuthFilter jwtAuthF
         .cors(cors -> cors.configurationSource(corsConfigurationSource()))
         .csrf(c -> c.disable())
         .authorizeHttpRequests(auth -> auth
-            .requestMatchers("/api/auth/login").permitAll()
-            .requestMatchers("/api/auth/register").permitAll()  // ← add this
             .requestMatchers("/swagger-ui/**", "/swagger-ui.html",
                              "/v3/api-docs/**", "/api-docs/**").permitAll()
             .requestMatchers("/api/**").permitAll()

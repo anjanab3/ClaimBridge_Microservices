@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Copy-Item \"C:\\\\Users\\\\2483370\\\\Favorites\\\\ClaimBridge_Microservices\\\\claims-service\\\\mvnw.cmd\" \"C:\\\\Users\\\\2483370\\\\Favorites\\\\ClaimBridge_Microservices\\\\reporting-service\\\\mvnw.cmd\")",
+      "Bash(Copy-Item \"C:\\\\Users\\\\2483370\\\\Favorites\\\\ClaimBridge_Microservices\\\\claims-service\\\\mvnw\" \"C:\\\\Users\\\\2483370\\\\Favorites\\\\ClaimBridge_Microservices\\\\reporting-service\\\\mvnw\")",
+      "Bash(Write-Host \"Done\")"
+    ]
+  }
+}

@@ -23,14 +23,20 @@ public class JwtService {
     }
 
     public String generateToken(User user) {
-        return Jwts.builder()
-                .claim("role", user.getRole().name())
-                .claim("userId", user.getUserId())
+        var builder = Jwts.builder()
+                .claim("role",     user.getRole().name())
+                .claim("userId",   user.getUserId())
+                .claim("username", user.getUsername())
                 .setSubject(user.getUsername())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 70))
-                .signWith(SignatureAlgorithm.HS256, getSigningKey())
-                .compact();
+                .setExpiration(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 70));
+
+        // Include holderId for USER role so policyholder portal can filter data
+        if (user.getHolderId() != null) {
+            builder.claim("holderId", user.getHolderId());
+        }
+
+        return builder.signWith(SignatureAlgorithm.HS256, getSigningKey()).compact();
     }
 
     public Claims extractClaims(String token) {

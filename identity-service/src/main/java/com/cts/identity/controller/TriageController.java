@@ -20,7 +20,7 @@ public class TriageController {
 
     // ── Rules ────────────────────────────────────────────────────────────────
 
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN','CLAIMS_INTAKE_AGENT')")
     @GetMapping("/rules")
     public ResponseEntity<?> getRules(
             @RequestParam(defaultValue = "0") int page,

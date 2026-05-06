@@ -21,10 +21,19 @@ public class FraudAlert {
     @JsonBackReference(value = "alert") //A
     private Claim claim; //A
     private String reason;
+    private String assignedTo;          // e.g. FA-0001
     private String escalatedTo;
 
     private LocalDateTime escalatedAt;
     private String status;              // OPEN, ESCALATED, RESOLVED
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
 
     @OneToOne(mappedBy = "fraudAlert")
     @JsonManagedReference(value = "alert-score")
@@ -32,6 +41,11 @@ public class FraudAlert {
 
     public Long getClaimId() {
         return claim != null ? claim.getClaimId() : null;
+    }
+
+    /** Flat numeric score for API consumers — avoids serialising the full FraudScore object. */
+    public Double getFraudScoreValue() {
+        return fraudScore != null ? fraudScore.getScoreValue() : null;
     }
 
 }

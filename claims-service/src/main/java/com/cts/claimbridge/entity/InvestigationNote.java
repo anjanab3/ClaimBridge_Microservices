@@ -20,6 +20,7 @@ public class InvestigationNote {
     @Column(nullable = false)
     private String authorId;
    
+    @Column(columnDefinition = "TEXT")
     private String noteText;
     private LocalDateTime createdAt;
     

@@ -1,16 +1,17 @@
 package com.cts.report.service;
 
+import com.cts.report.client.ClaimsServiceClient;
+import com.cts.report.client.PolicyServiceClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import com.cts.report.client.ClaimsServiceClient;
 
 @Service
 public class UnderwriterService {
 
-    @Autowired
-    private ClaimsServiceClient claimsServiceClient;
+    @Autowired private ClaimsServiceClient claimsServiceClient;
+    @Autowired private PolicyServiceClient  policyServiceClient;
 
-    // Claims 
+    // ── Claims ───────────────────────────────────────────────────────────────
 
     public Object getAllClaims(int page, int size) {
         return claimsServiceClient.getAllClaims(page, size).getBody();
@@ -28,7 +29,7 @@ public class UnderwriterService {
         return claimsServiceClient.getClaimTrend().getBody();
     }
 
-    // Fraud Alerts
+    // ── Fraud Alerts ─────────────────────────────────────────────────────────
 
     public Object getAllFraudAlerts(int page, int size) {
         return claimsServiceClient.getAllFraudAlerts(page, size).getBody();
@@ -38,21 +39,21 @@ public class UnderwriterService {
         return claimsServiceClient.getFraudAlertsByStatus(status, page, size).getBody();
     }
 
-    // Policies
+    // ── Policies ─────────────────────────────────────────────────────────────
 
     public Object getAllPolicies(int page, int size) {
-        return claimsServiceClient.getAllPolicies(page, size).getBody();
+        return policyServiceClient.getAllPolicies(page, size).getBody();
     }
 
     public Object getPolicyById(Long policyId) {
-        return claimsServiceClient.getPolicyById(policyId).getBody();
+        return policyServiceClient.getPolicyById(policyId).getBody();
     }
 
     public Object updatePolicyCoverage(Long policyId, String coverageJSON) {
-        return claimsServiceClient.updatePolicyCoverage(policyId, coverageJSON).getBody();
+        return policyServiceClient.updatePolicyCoverage(policyId, coverageJSON).getBody();
     }
 
     public Object updatePolicyStatus(Long policyId, String status) {
-        return claimsServiceClient.updatePolicyStatus(policyId, status).getBody();
+        return policyServiceClient.updatePolicyStatus(policyId, status).getBody();
     }
 }

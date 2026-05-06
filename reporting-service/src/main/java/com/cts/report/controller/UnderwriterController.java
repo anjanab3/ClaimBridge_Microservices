@@ -8,7 +8,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@PreAuthorize("hasAuthority('UNDERWRITER')")
+@PreAuthorize("hasAnyAuthority('UNDERWRITER', 'ADMIN')")
 @RequestMapping("/api/underwriter")
 public class UnderwriterController {
 

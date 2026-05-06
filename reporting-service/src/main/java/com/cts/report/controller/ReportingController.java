@@ -28,7 +28,7 @@ public class ReportingController {
         type = REPORT_BY_ID   &reportId={id}    → report by ID
         type = REPORT_BY_SCOPE &scope={scope}   → OPERATIONAL / COMPLIANCE / FRAUD
     */
-    @PreAuthorize("hasAuthority('AUDITOR') or hasAuthority('COMPLIANCE')")
+    @PreAuthorize("hasAuthority('AUDITOR')")
     @GetMapping("/reports/query")
     public ResponseEntity<Object> queryReports(
             @RequestParam String type,
@@ -58,7 +58,7 @@ public class ReportingController {
     }
 
     // Generate a new report
-    @PreAuthorize("hasAuthority('COMPLIANCE')")
+    @PreAuthorize("hasAuthority('AUDITOR')")
     @PostMapping("/reports/generate")
     public ResponseEntity<Object> generateReport(@RequestBody ReportRequestDTO request) {
         if (request.getScope() == null || request.getScope().isBlank())
@@ -67,7 +67,7 @@ public class ReportingController {
     }
 
     // Regulatory export — fetch reports by scope within a date range
-    @PreAuthorize("hasAuthority('COMPLIANCE')")
+    @PreAuthorize("hasAuthority('AUDITOR')")
     @GetMapping("/reports/export")
     public ResponseEntity<Object> exportRegulatoryReports(
             @RequestParam String scope,

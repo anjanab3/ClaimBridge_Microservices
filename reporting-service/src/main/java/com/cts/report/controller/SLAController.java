@@ -25,7 +25,7 @@ public class SLAController {
         type = ALL_SLAS                             → all SLA rules
         type = BY_ENTITY  &entity={monitoredEntity} → CLAIM, INVESTIGATION, FRAUD_ALERT, SETTLEMENT
     */
-    @PreAuthorize("hasAuthority('AUDITOR') or hasAuthority('COMPLIANCE') or hasAuthority('UNDERWRITER')")
+    @PreAuthorize("hasAuthority('AUDITOR') or hasAuthority('AUDITOR') or hasAuthority('UNDERWRITER')")
     @GetMapping("/query")
     public ResponseEntity<Object> querySLAs(
             @RequestParam String type,
@@ -64,7 +64,7 @@ public class SLAController {
     }
 
     // GET /api/sla/breaches — live SLA breach report from claims-service data
-    @PreAuthorize("hasAuthority('AUDITOR') or hasAuthority('COMPLIANCE') or hasAuthority('UNDERWRITER')")
+    @PreAuthorize("hasAuthority('AUDITOR') or hasAuthority('AUDITOR') or hasAuthority('UNDERWRITER')")
     @GetMapping("/breaches")
     public ResponseEntity<List<SLABreachDTO>> getBreaches() {
         return ResponseEntity.ok(slaService.computeBreaches());

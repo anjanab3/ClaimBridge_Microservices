@@ -5,6 +5,7 @@ import com.cts.claimbridge.dto.*;
 import com.cts.claimbridge.entity.FraudAlert;
 import com.cts.claimbridge.service.FraudAnalystService;
 import com.cts.claimbridge.service.TriageDecisionService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.HttpStatus;
@@ -21,7 +22,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/triage/decisions")
-@PreAuthorize("hasAnyAuthority('ADMIN','CLAIMS_INTAKE_AGENT')")
+@PreAuthorize("hasAnyAuthority('ADMIN','CLAIMS_INTAKE_AGENT','FRAUD_ANALYST')")
 public class TriageDecisionController {
     @Autowired
     private TriageDecisionService decisionService;
@@ -56,6 +57,17 @@ public class TriageDecisionController {
                     "Invalid queue type '" + type + "'. Accepted values: FRAUD, ADJUSTER"
             );
         };
+    }
+
+    @GetMapping("/suggest/{claimId}")
+    public ResponseEntity<?> suggestRule(@PathVariable Long claimId) {
+        try {
+            return ResponseEntity.ok(decisionService.suggestRuleForClaim(claimId));
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ResponseDTO(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ResponseDTO(e.getMessage()));
+        }
     }
 
     @PostMapping

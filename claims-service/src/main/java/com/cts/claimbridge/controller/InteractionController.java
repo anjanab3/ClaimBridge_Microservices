@@ -35,4 +35,16 @@ public class InteractionController {
             return ResponseEntity.badRequest().body(new ResponseDTO("No investigation Id found"));
         }
     }
+
+    @DeleteMapping("/{investigationId}/notes/{noteId}")
+public ResponseEntity<?> deleteNote(
+        @PathVariable("investigationId") Long investigationId,
+        @PathVariable("noteId") Long noteId) {
+    try {
+        service.deleteNote(investigationId, noteId);
+        return ResponseEntity.ok().body(new ResponseDTO("Note deleted successfully"));
+    } catch (Exception e) {
+        return ResponseEntity.badRequest().body(new ResponseDTO(e.getMessage()));
+    }
+}
 }

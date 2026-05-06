@@ -1,6 +1,5 @@
 package com.cts.claimbridge.security;
 import com.cts.claimbridge.service.JwtService;
-import com.cts.claimbridge.service.AuthService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,11 +16,9 @@ import java.util.Collections;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-    private final AuthService authService;
 
-    public JwtAuthFilter(JwtService jwtService, AuthService authService) {
+    public JwtAuthFilter(JwtService jwtService) {
         this.jwtService = jwtService;
-        this.authService = authService;
     }
 
     @Override

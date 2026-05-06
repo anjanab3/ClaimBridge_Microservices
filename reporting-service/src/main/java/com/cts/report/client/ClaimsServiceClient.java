@@ -2,68 +2,52 @@ package com.cts.report.client;
 
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 
 /**
- * Feign client for claims-service (registered in Eureka as "claims").
- * The underwriter endpoints mirror what was formerly handled inside claims-service directly.
- * Ensure claims-service exposes these paths or adjust the mappings to match existing ones.
+ * Feign client for claims-service internal reporting endpoints.
+ * These endpoints require no JWT — safe for service-to-service calls.
  */
-@FeignClient(name = "claims", configuration = FeignClientConfig.class)
+@FeignClient(name = "claims-service", url = "${feign.client.config.claims-service.url}")
 public interface ClaimsServiceClient {
 
-    // Claims Endpoints
+    // ── Claims ───────────────────────────────────────────────────────────────
 
-    @GetMapping("/api/claims/all")
+    @GetMapping("/api/internal/reporting/claims")
     ResponseEntity<Object> getAllClaims(
             @RequestParam int page,
             @RequestParam int size);
 
-    @GetMapping("/api/claims/by-status")
+    @GetMapping("/api/internal/reporting/claims/status/{status}")
     ResponseEntity<Object> getClaimsByStatus(
-            @RequestParam String status,
+            @PathVariable("status") String status,
             @RequestParam int page,
             @RequestParam int size);
 
-    @GetMapping("/api/claims/by-loss-type")
+    @GetMapping("/api/internal/reporting/claims/loss-type/{lossType}")
     ResponseEntity<Object> getClaimsByLossType(
-            @RequestParam String lossType,
+            @PathVariable("lossType") String lossType,
             @RequestParam int page,
             @RequestParam int size);
 
-    @GetMapping("/api/claims/trend")
+    @GetMapping("/api/internal/reporting/claims/trend")
     ResponseEntity<Object> getClaimTrend();
 
-    // Fraud Alerts Endpoints
+    // ── Fraud Alerts ─────────────────────────────────────────────────────────
 
-    @GetMapping("/api/fraud-alerts/all")
+    @GetMapping("/api/internal/reporting/fraud-alerts")
     ResponseEntity<Object> getAllFraudAlerts(
             @RequestParam int page,
             @RequestParam int size);
 
-    @GetMapping("/api/fraud-alerts/by-status")
+    @GetMapping("/api/internal/reporting/fraud-alerts/status/{status}")
     ResponseEntity<Object> getFraudAlertsByStatus(
-            @RequestParam String status,
+            @PathVariable("status") String status,
             @RequestParam int page,
             @RequestParam int size);
 
-    // Policies Endpoints
-
-    @GetMapping("/api/policies/all")
-    ResponseEntity<Object> getAllPolicies(
-            @RequestParam int page,
-            @RequestParam int size);
-
-    @GetMapping("/api/policies/{policyId}")
-    ResponseEntity<Object> getPolicyById(@PathVariable Long policyId);
-
-    @PutMapping("/api/policies/{policyId}/coverage")
-    ResponseEntity<Object> updatePolicyCoverage(
-            @PathVariable Long policyId,
-            @RequestBody String coverageJSON);
-
-    @PatchMapping("/api/policies/{policyId}/status")
-    ResponseEntity<Object> updatePolicyStatus(
-            @PathVariable Long policyId,
-            @RequestParam String status);
+    // ── Policies (proxied via claims-service → policy-service) ───────────────
+    // Policies live in policy-service — use PolicyServiceClient instead.
 }

@@ -1,15 +1,11 @@
 package com.cts.claimbridge.service;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
-import java.util.Date;
 
 import org.springframework.stereotype.Service;
 
-import com.cts.claimbridge.entity.User;
-
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 
 @Service
@@ -21,18 +17,6 @@ public class JwtService {
     {
         byte[] keyBytes = JWT_SECRET.getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
-    }
-
-    public String generateToken(User user)
-    {
-        return Jwts.builder()
-                .claim("role" , user.getRole().name())
-                .claim("userId" , user.getUserId())
-                .setSubject(user.getUsername())
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 10 * 7))
-                .signWith(SignatureAlgorithm.HS256 , getSigningKey())
-                .compact();
     }
 
     public Claims extractClaims(String token) {
@@ -53,9 +37,9 @@ public class JwtService {
         return extractClaims(token).get("role" , String.class);
     }
 
-    public int extractUserId(String token)
+    public String extractUserId(String token)
     {
-        return extractClaims(token).get("userId" , Integer.class);
+        return extractClaims(token).get("userId" , String.class);
     }
 
     public JwtService()

@@ -1,9 +1,7 @@
 package com.cts.identity.service;
 
-import com.cts.identity.entity.PolicyHolder;
 import com.cts.identity.entity.RoleSequence;
 import com.cts.identity.entity.User;
-import com.cts.identity.repository.PolicyHolderRepository;
 import com.cts.identity.repository.RoleSequenceRepository;
 import com.cts.identity.repository.UserRepository;
 import com.cts.identity.util.Role;
@@ -19,9 +17,6 @@ public class AuthService {
     private UserRepository userRepository;
 
     @Autowired
-    private PolicyHolderRepository policyHolderRepository;
-
-    @Autowired
     private RoleSequenceRepository roleSequenceRepository;
 
     @Autowired
@@ -29,12 +24,7 @@ public class AuthService {
 
     @Transactional
     public User save(User user) {
-        // Link to PolicyHolder if holderId provided
-        if (user.getPolicyHolder() != null && user.getPolicyHolder().getHolderId() != null) {
-            PolicyHolder holder = policyHolderRepository.findById(user.getPolicyHolder().getHolderId())
-                    .orElseThrow(() -> new RuntimeException("PolicyHolder not found"));
-            user.setPolicyHolder(holder);
-        }
+        // holderId is a plain Long column — no FK resolution needed; policy-service owns PolicyHolder
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         user.setUserId(generateUserId(user.getRole()));
         return userRepository.save(user);

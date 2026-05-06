@@ -218,11 +218,16 @@ public class SLAService {
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> fetchOpenRecords(String entity) {
         Object response;
-        switch (entity.toUpperCase()) {
-            case "CLAIM" -> response = claimsServiceClient.getClaimsByStatus("IN_COMING", 0, 500).getBody();
-            case "INVESTIGATION" -> response = claimsServiceClient.getClaimsByStatus("IN_REVIEW", 0, 500).getBody();
-            case "FRAUD_ALERT" -> response = claimsServiceClient.getFraudAlertsByStatus("OPEN", 0, 500).getBody();
-            default -> { return List.of(); }
+        try {
+            response = switch (entity.toUpperCase()) {
+                case "CLAIM"         -> claimsServiceClient.getClaimsByStatus("IN_COMING", 0, 500).getBody();
+                case "INVESTIGATION" -> claimsServiceClient.getClaimsByStatus("IN_REVIEW",  0, 500).getBody();
+                case "FRAUD_ALERT"   -> claimsServiceClient.getFraudAlertsByStatus("OPEN",  0, 500).getBody();
+                default              -> null;
+            };
+        } catch (Exception e) {
+            System.err.println("[SLAService] Feign error fetching " + entity + ": " + e.getMessage());
+            return List.of();
         }
         if (response == null) return List.of();
         Map<String, Object> page = objectMapper.convertValue(response, Map.class);

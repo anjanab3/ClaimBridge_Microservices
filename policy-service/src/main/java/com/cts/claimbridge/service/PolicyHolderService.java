@@ -30,7 +30,12 @@ public class PolicyHolderService {
         return holderRepo.findAll(pageable);
     }
 
-    // Create policyholder
+    // Create policyholder (single, from admin form)
+    public PolicyHolder saveOne(PolicyHolder holder) {
+        return holderRepo.save(holder);
+    }
+
+    // Bulk insert (for seed data / direct use)
     public List<PolicyHolder> save(List<PolicyHolder> holder) {
         return holderRepo.saveAll(holder);
     }

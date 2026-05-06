@@ -31,7 +31,7 @@ public class ReportingService {
     // Report Retrieval and Generation
 
     public Page<ReportResponseDTO> getAllReports(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("generatedAt").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by("reportId").descending());
         return reportRepository.findAll(pageable).map(this::toReportDTO);
     }
 
@@ -42,7 +42,7 @@ public class ReportingService {
     }
 
     public Page<ReportResponseDTO> getReportsByScope(String scope, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("generatedAt").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by("reportId").descending());
         return reportRepository.findByScopeIgnoreCase(scope, pageable).map(this::toReportDTO);
     }
 
@@ -61,7 +61,7 @@ public class ReportingService {
     }
 
     public Page<ReportResponseDTO> exportRegulatoryReports(String scope, LocalDateTime from, LocalDateTime to, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("generatedAt").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by("reportId").descending());
         return reportRepository
                 .findByScopeIgnoreCaseAndGeneratedAtBetween(scope, from, to, pageable)
                 .map(this::toReportDTO);
@@ -70,27 +70,27 @@ public class ReportingService {
     // Audit Log Retrieval and Management
 
     public Page<AuditLogDTO> getAllAuditLogs(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("timestamp").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by("logId").descending());
         return auditLogRepository.findAll(pageable).map(this::toAuditDTO);
     }
 
     public Page<AuditLogDTO> getAuditLogsByUser(Long userId, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("timestamp").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by("logId").descending());
         return auditLogRepository.findByUserId(userId, pageable).map(this::toAuditDTO);
     }
 
     public Page<AuditLogDTO> getAuditLogsByResource(String resource, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("timestamp").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by("logId").descending());
         return auditLogRepository.findByResourceIgnoreCase(resource, pageable).map(this::toAuditDTO);
     }
 
     public Page<AuditLogDTO> getAuditLogsByAction(String action, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("timestamp").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by("logId").descending());
         return auditLogRepository.findByActionIgnoreCase(action, pageable).map(this::toAuditDTO);
     }
 
     public Page<AuditLogDTO> getAuditLogsByDateRange(LocalDateTime from, LocalDateTime to, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("timestamp").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by("logId").descending());
         return auditLogRepository.findByTimestampBetween(from, to, pageable).map(this::toAuditDTO);
     }
 

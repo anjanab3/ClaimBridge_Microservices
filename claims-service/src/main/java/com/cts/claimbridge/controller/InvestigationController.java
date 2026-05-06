@@ -2,6 +2,9 @@ package com.cts.claimbridge.controller;
 
 import com.cts.claimbridge.dto.*;
 import com.cts.claimbridge.service.InvestigationService;
+
+import jakarta.transaction.Transactional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,13 +13,13 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api")
-@PreAuthorize("hasAnyAuthority('FRAUD_ANALYST','CLAIMS_ADJUSTER')")
+//@PreAuthorize("hasAnyAuthority('FRAUD_ANALYST','CLAIMS_ADJUSTER')")
 public class InvestigationController {
     @Autowired
     private InvestigationService service;
 
     @GetMapping("/claims/{claimId}/investigation")
-    public ResponseEntity<?> getInvestigationByClaimId(@PathVariable Long claimId) {
+    public ResponseEntity<?> getInvestigationByClaimId(@PathVariable("claimId") Long claimId) {
         try {
             InvestigationFullResponseDTO result = service.getInvestigationByClaimId(claimId);
             return ResponseEntity.ok(result);
@@ -25,9 +28,10 @@ public class InvestigationController {
         }
     }
 
+    @Transactional
     @PutMapping("/investigations/{investigationId}")
     public ResponseEntity<?> updateInvestigationAndCreateSettlement(
-            @PathVariable Long investigationId,
+            @PathVariable("investigationId") Long investigationId,
             @RequestBody InvestigateUpdateStatusDTO dto) {
         try {
             return ResponseEntity.ok().body(new MessageDTO(service.updateInvestigationAndCreateSettlement(investigationId, dto),"Status/Settlement updated successfully!!!"));
