@@ -27,12 +27,25 @@ public class FraudAlert {
     private LocalDateTime escalatedAt;
     private String status;              // OPEN, ESCALATED, RESOLVED
 
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
+
     @OneToOne(mappedBy = "fraudAlert")
     @JsonManagedReference(value = "alert-score")
     private FraudScore fraudScore;
 
     public Long getClaimId() {
         return claim != null ? claim.getClaimId() : null;
+    }
+
+    /** Flat numeric score for API consumers — avoids serialising the full FraudScore object. */
+    public Double getFraudScoreValue() {
+        return fraudScore != null ? fraudScore.getScoreValue() : null;
     }
 
 }

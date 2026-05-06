@@ -66,4 +66,28 @@ public ResponseEntity<?> getByNumber(@RequestParam String number) {
     public List<Long> getPolicyIdsByHolderId(@PathVariable Long holderId) {
         return policyService.findPolicyIdsByHolderId(holderId);
     }
+
+    /** Update coverage JSON — called by reporting-service underwriter view */
+    @PutMapping("/{policyId}")
+    public ResponseEntity<?> updateCoverage(
+            @PathVariable Long policyId,
+            @RequestBody String coverageJSON) {
+        try {
+            return ResponseEntity.ok(policyService.updateCoverage(policyId, coverageJSON));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(new ResponseDTO(e.getMessage()));
+        }
+    }
+
+    /** Update policy status — called by reporting-service underwriter view */
+    @PatchMapping("/{policyId}/status")
+    public ResponseEntity<?> updateStatus(
+            @PathVariable Long policyId,
+            @RequestParam String status) {
+        try {
+            return ResponseEntity.ok(policyService.updateStatus(policyId, status));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(new ResponseDTO(e.getMessage()));
+        }
+    }
 }
