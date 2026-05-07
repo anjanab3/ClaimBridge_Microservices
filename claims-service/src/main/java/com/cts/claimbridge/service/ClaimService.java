@@ -40,6 +40,15 @@ public class ClaimService {
             throw new RuntimeException("Policy not found with ID: " + policyId);
         }
 
+        // Block duplicate active claims for the same policy
+        boolean hasActiveClaim = claimRepository.existsByPolicyIdAndStatusIn(
+                policyId, List.of(ClaimStatus.IN_COMING, ClaimStatus.IN_REVIEW));
+        if (hasActiveClaim) {
+            throw new RuntimeException(
+                "A claim for this policy is already in progress. " +
+                "You cannot raise another claim until the current one is resolved.");
+        }
+
         claim.setPolicyId(policyId);
         Claim savedClaim = claimRepository.save(claim);
 

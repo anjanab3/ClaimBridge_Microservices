@@ -24,8 +24,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -115,7 +113,6 @@ public class TriageDecisionService {
         Claim claim = claimRepository.findById(claimId)
                 .orElseThrow(() -> new EntityNotFoundException("Claim not found for ID: " + claimId));
 
-        // Get all active rules from identity-service via Feign
         List<TriageRuleDTO> activeRules = identityServiceClient.getActiveRules()
                 .stream()
                 .filter(r -> !Boolean.TRUE.equals(r.getIsDefault()))
@@ -132,19 +129,16 @@ public class TriageDecisionService {
                 Map<String, Object> conditions = om.readValue(json, Map.class);
                 if (conditions.isEmpty()) continue;
 
-                // Match lossType
                 String requiredType = (String) conditions.get("lossType");
                 if (requiredType != null && !requiredType.isBlank()
                         && !requiredType.equalsIgnoreCase(claim.getLossType())) continue;
 
-                // Match amount range (amountMin / amountMax)
                 double amount = claim.getEstimatedAmount() != null ? claim.getEstimatedAmount() : 0.0;
                 Object minObj = conditions.get("amountMin");
                 Object maxObj = conditions.get("amountMax");
                 if (minObj != null && amount < ((Number) minObj).doubleValue()) continue;
                 if (maxObj != null && amount > ((Number) maxObj).doubleValue()) continue;
 
-                // Match amount with operator string e.g. ">=10000"
                 String amountCond = (String) conditions.get("amount");
                 if (amountCond != null && !amountCond.isBlank()) {
                     amountCond = amountCond.trim();
@@ -155,13 +149,10 @@ public class TriageDecisionService {
                     else if (amountCond.startsWith("=")  && amount != Double.parseDouble(amountCond.substring(1))) continue;
                 }
 
-                return rule; // first match wins
-            } catch (Exception ignored) {
-                // Malformed conditionsJSON — skip
-            }
+                return rule;
+            } catch (Exception ignored) { }
         }
 
-        // Fallback: default rule from identity-service
         try {
             return identityServiceClient.getDefaultRule();
         } catch (FeignException.NotFound e) {
@@ -207,7 +198,6 @@ public class TriageDecisionService {
 
         Long ruleIdToUse = request.getRuleId() != null ? request.getRuleId() : decision.getRuleId();
 
-        // Fetch updated rule from identity-service
         TriageRuleDTO rule;
         try {
             rule = identityServiceClient.getRuleById(ruleIdToUse);

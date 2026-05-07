@@ -21,6 +21,8 @@ public interface ClaimRepository extends JpaRepository<Claim, Long> {
 
     Page<Claim> findByStatus(ClaimStatus status, Pageable pageable);
 
+    boolean existsByPolicyIdAndStatusIn(Long policyId, List<ClaimStatus> statuses);
+
     Page<Claim> findByLossType(String lossType, Pageable pageable);
 
     @Query("SELECT c.status FROM Claim c WHERE c.claimId = :claimId")

@@ -15,4 +15,6 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
 
     Page<Report> findByScopeIgnoreCaseAndGeneratedAtBetween(
             String scope, LocalDateTime from, LocalDateTime to, Pageable pageable);
+
+    java.util.Optional<Report> findTopByScopeIgnoreCaseOrderByGeneratedAtDesc(String scope);
 }
