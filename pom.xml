@@ -25,6 +25,8 @@
         <module>identity-service</module>
         <module>payment-service</module>
         <module>policy-service</module>
+        <module>reporting-service</module>
+        <module>launcher</module>
     </modules>
 
     <dependencyManagement>

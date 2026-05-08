@@ -11,7 +11,7 @@
 	<groupId>com.cts</groupId>
 	<artifactId>reporting-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<packaging>war</packaging>
+	<packaging>jar</packaging>
 	<name>reporting-service</name>
 	<description>ClaimBridge Reporting, Audit and Underwriter Service</description>
     <properties>

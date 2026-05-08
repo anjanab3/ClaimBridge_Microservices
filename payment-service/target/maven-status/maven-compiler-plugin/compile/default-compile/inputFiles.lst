@@ -1,9 +1,11 @@
-C:\Users\2483370\Favorites\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\config\RestTemplateConfig.java
+C:\Users\2483370\Favorites\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\client\ClaimsServiceClient.java
+C:\Users\2483370\Favorites\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\config\FeignClientConfig.java
 C:\Users\2483370\Favorites\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\config\SecurityConfig.java
 C:\Users\2483370\Favorites\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\config\SwaggerConfig.java
 C:\Users\2483370\Favorites\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\controller\PaymentController.java
 C:\Users\2483370\Favorites\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\controller\SettlementController.java
 C:\Users\2483370\Favorites\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\dto\ResponseDTO.java
+C:\Users\2483370\Favorites\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\dto\SettlementSyncDTO.java
 C:\Users\2483370\Favorites\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\entity\Payment.java
 C:\Users\2483370\Favorites\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\entity\Settlement.java
 C:\Users\2483370\Favorites\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\PaymentServiceApplication.java
@@ -14,4 +16,5 @@ C:\Users\2483370\Favorites\ClaimBridge_Microservices\payment-service\src\main\ja
 C:\Users\2483370\Favorites\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\service\PaymentService.java
 C:\Users\2483370\Favorites\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\service\SettlementService.java
 C:\Users\2483370\Favorites\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\util\PaymentStatus.java
+C:\Users\2483370\Favorites\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\util\SettlementStatus.java
 C:\Users\2483370\Favorites\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\util\Status.java
