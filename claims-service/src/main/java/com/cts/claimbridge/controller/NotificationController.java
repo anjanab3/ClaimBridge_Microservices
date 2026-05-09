@@ -17,18 +17,29 @@ import java.util.List;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    /** Policyholder notifications (numeric userId). */
     @GetMapping("/{userId}")
     public ResponseEntity<?> getUserNotification(@PathVariable Long userId,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "5") int size
-    ){
-        Page<Notification> notifications =  notificationService.getUserNotifications(userId,page,size);
-
-        if(notifications.isEmpty())
-        {
+    ) {
+        Page<Notification> notifications = notificationService.getUserNotifications(userId, page, size);
+        if (notifications.isEmpty()) {
             return ResponseEntity.ok().body(new ResponseDTO("No Notifications Found"));
         }
+        return ResponseEntity.ok().body(notifications);
+    }
 
+    /** Staff (adjuster / fraud analyst) notifications (string userId, e.g. "CA-0001"). */
+    @GetMapping("/staff/{staffUserId}")
+    public ResponseEntity<?> getStaffNotifications(@PathVariable String staffUserId,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "20") int size
+    ) {
+        Page<Notification> notifications = notificationService.getStaffNotifications(staffUserId, page, size);
+        if (notifications.isEmpty()) {
+            return ResponseEntity.ok().body(new ResponseDTO("No Notifications Found"));
+        }
         return ResponseEntity.ok().body(notifications);
     }
 

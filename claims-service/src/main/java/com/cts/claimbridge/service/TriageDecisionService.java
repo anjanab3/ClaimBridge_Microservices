@@ -24,8 +24,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -38,6 +36,7 @@ public class TriageDecisionService {
     @Autowired private IdentityServiceClient    identityServiceClient;
     @Autowired private ClaimRepository          claimRepository;
     @Autowired private FraudAlertRepository     fraudAlertRepository;
+    @Autowired private NotificationService      notificationService;
 
     // ── Create a triage decision ─────────────────────────────────────────────
     public TriageDecisionResponseDTO createDecision(TriageDecisionRequestDTO request) {
@@ -62,7 +61,11 @@ public class TriageDecisionService {
         try {
             rule = identityServiceClient.getRuleById(request.getRuleId());
         } catch (FeignException.NotFound e) {
-            throw new EntityNotFoundException("Triage Rule not found for ID: " + request.getRuleId());
+            throw new EntityNotFoundException("Triage rule ID " + request.getRuleId() + " was not found. Please select a valid rule.");
+        } catch (FeignException e) {
+            throw new RuntimeException("Unable to reach the rules service. Please ensure all services are running and try again.");
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to reach the rules service. Please ensure all services are running and try again.");
         }
         if (Boolean.FALSE.equals(rule.getActive()))
             throw new IllegalStateException("Triage Rule ID " + request.getRuleId() + " is not active");
@@ -94,6 +97,19 @@ public class TriageDecisionService {
 
         TriageDecision saved = decisionRepository.save(decision);
 
+        // Notify the assigned staff member
+        try {
+            String queue = saved.getAssignedQueue() != null ? saved.getAssignedQueue() : "ADJUSTER";
+            String role  = "FRAUD".equalsIgnoreCase(queue) ? "Fraud Analyst" : "Adjuster";
+            notificationService.sendStaffNotification(
+                    saved.getAssignedTo(),
+                    saved.getClaimId(),
+                    "You have been assigned a new claim CLM-" + saved.getClaimId()
+                            + " as " + role + " (" + saved.getPriority() + " priority)",
+                    "ASSIGNMENT"
+            );
+        } catch (Exception ignored) { /* non-fatal */ }
+
         // Auto-create FraudAlert if routed to FRAUD queue
         if ("FRAUD".equalsIgnoreCase(saved.getAssignedQueue())) {
             boolean alertExists = !fraudAlertRepository.findByClaim_ClaimId(saved.getClaimId()).isEmpty();
@@ -115,7 +131,6 @@ public class TriageDecisionService {
         Claim claim = claimRepository.findById(claimId)
                 .orElseThrow(() -> new EntityNotFoundException("Claim not found for ID: " + claimId));
 
-        // Get all active rules from identity-service via Feign
         List<TriageRuleDTO> activeRules = identityServiceClient.getActiveRules()
                 .stream()
                 .filter(r -> !Boolean.TRUE.equals(r.getIsDefault()))
@@ -132,19 +147,16 @@ public class TriageDecisionService {
                 Map<String, Object> conditions = om.readValue(json, Map.class);
                 if (conditions.isEmpty()) continue;
 
-                // Match lossType
                 String requiredType = (String) conditions.get("lossType");
                 if (requiredType != null && !requiredType.isBlank()
                         && !requiredType.equalsIgnoreCase(claim.getLossType())) continue;
 
-                // Match amount range (amountMin / amountMax)
                 double amount = claim.getEstimatedAmount() != null ? claim.getEstimatedAmount() : 0.0;
                 Object minObj = conditions.get("amountMin");
                 Object maxObj = conditions.get("amountMax");
                 if (minObj != null && amount < ((Number) minObj).doubleValue()) continue;
                 if (maxObj != null && amount > ((Number) maxObj).doubleValue()) continue;
 
-                // Match amount with operator string e.g. ">=10000"
                 String amountCond = (String) conditions.get("amount");
                 if (amountCond != null && !amountCond.isBlank()) {
                     amountCond = amountCond.trim();
@@ -155,18 +167,18 @@ public class TriageDecisionService {
                     else if (amountCond.startsWith("=")  && amount != Double.parseDouble(amountCond.substring(1))) continue;
                 }
 
-                return rule; // first match wins
-            } catch (Exception ignored) {
-                // Malformed conditionsJSON — skip
-            }
+                return rule;
+            } catch (Exception ignored) { }
         }
 
-        // Fallback: default rule from identity-service
         try {
             return identityServiceClient.getDefaultRule();
         } catch (FeignException.NotFound e) {
-            throw new EntityNotFoundException(
-                    "No matching rule found and no default rule is configured. Please contact an admin.");
+            throw new EntityNotFoundException("No matching rule found and no default rule is configured. Please contact an admin.");
+        } catch (FeignException e) {
+            throw new RuntimeException("Unable to reach the rules service. Please ensure all services are running and try again.");
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to reach the rules service. Please ensure all services are running and try again.");
         }
     }
 
@@ -207,12 +219,15 @@ public class TriageDecisionService {
 
         Long ruleIdToUse = request.getRuleId() != null ? request.getRuleId() : decision.getRuleId();
 
-        // Fetch updated rule from identity-service
         TriageRuleDTO rule;
         try {
             rule = identityServiceClient.getRuleById(ruleIdToUse);
         } catch (FeignException.NotFound e) {
-            throw new EntityNotFoundException("Triage Rule not found for ID: " + ruleIdToUse);
+            throw new EntityNotFoundException("Triage rule ID " + ruleIdToUse + " was not found. Please select a valid rule.");
+        } catch (FeignException e) {
+            throw new RuntimeException("Unable to reach the rules service. Please ensure all services are running and try again.");
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to reach the rules service. Please ensure all services are running and try again.");
         }
         if (Boolean.FALSE.equals(rule.getActive()))
             throw new IllegalStateException("Triage Rule ID " + ruleIdToUse + " is not active");
@@ -231,6 +246,18 @@ public class TriageDecisionService {
         }
         decision.setAssignedAt(LocalDateTime.now());
         TriageDecision updated = decisionRepository.save(decision);
+
+        // Notify the (re-)assigned staff member
+        try {
+            String queue = updated.getAssignedQueue() != null ? updated.getAssignedQueue() : "ADJUSTER";
+            String role  = "FRAUD".equalsIgnoreCase(queue) ? "Fraud Analyst" : "Adjuster";
+            notificationService.sendStaffNotification(
+                    updated.getAssignedTo(),
+                    updated.getClaimId(),
+                    "Claim CLM-" + updated.getClaimId() + " has been reassigned to you as " + role,
+                    "ASSIGNMENT"
+            );
+        } catch (Exception ignored) { /* non-fatal */ }
 
         return mapToResponseDTO(updated, "Triage decision updated successfully");
     }

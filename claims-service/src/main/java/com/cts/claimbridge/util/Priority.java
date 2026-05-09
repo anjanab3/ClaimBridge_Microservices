@@ -1,7 +1,7 @@
 package com.cts.claimbridge.util;
 
 public enum Priority {
-    LOW,
+    HIGH,
     MEDIUM,
-    HIGH
+    LOW
 }

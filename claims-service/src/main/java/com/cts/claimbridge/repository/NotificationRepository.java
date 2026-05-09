@@ -13,5 +13,6 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     List<Notification> findByClaim_ClaimIdOrderByCreatedAtDesc(Long claimID);
 
     Page<Notification> findByUserId(Long userId, Pageable pageable);
+    Page<Notification> findByStaffUserId(String staffUserId, Pageable pageable);
     List<Notification>findByStatus(String status);
 }

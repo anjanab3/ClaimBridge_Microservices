@@ -18,8 +18,10 @@ public class UserService {
     @Autowired
     private UserRepository userRepository;
 
-    public Page<UserDTO> findAllUsers(int page, int size) {
-        return userRepository.findAll(PageRequest.of(page, size))
+    public Page<UserDTO> findAllUsers(int page, int size, String roleName, String search) {
+        Role role = (roleName != null && !roleName.isBlank()) ? Role.valueOf(roleName.toUpperCase()) : null;
+        String searchTerm = (search != null && !search.isBlank()) ? search.trim() : null;
+        return userRepository.findByFilters(role, searchTerm, PageRequest.of(page, size))
                 .map(this::toDTO);
     }
 

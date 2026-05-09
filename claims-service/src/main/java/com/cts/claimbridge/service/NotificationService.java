@@ -20,10 +20,12 @@ public class NotificationService {
     @Autowired
     private ClaimRepository claimRepository;
     private final NotificationRepository notificationRepo;
-    public void sendNotification(Long userId,Long claimId,String message,String category){
+    /** Send a notification to a policyholder (numeric userId). */
+    public void sendNotification(Long userId, Long claimId, String message, String category) {
         Notification notification = new Notification();
         notification.setUserId(userId);
-        Claim claim=claimRepository.findById(claimId).orElseThrow(()->new RuntimeException("No claim found"));
+        Claim claim = claimRepository.findById(claimId)
+                .orElseThrow(() -> new RuntimeException("No claim found"));
         notification.setClaim(claim);
         notification.setMessage(message);
         notification.setCategory(category);
@@ -31,10 +33,31 @@ public class NotificationService {
         notification.setCreatedAt(LocalDateTime.now());
         notificationRepo.save(notification);
     }
-    public Page<Notification> getUserNotifications(Long userId, int page , int size) {
-        Pageable pageable = PageRequest.of(page,size);
-        return notificationRepo.findByUserId(userId,pageable);
+
+    /** Send a notification to a staff member (string userId, e.g. "CA-0001"). */
+    public void sendStaffNotification(String staffUserId, Long claimId, String message, String category) {
+        Notification notification = new Notification();
+        notification.setStaffUserId(staffUserId);
+        Claim claim = claimRepository.findById(claimId)
+                .orElseThrow(() -> new RuntimeException("No claim found"));
+        notification.setClaim(claim);
+        notification.setMessage(message);
+        notification.setCategory(category);
+        notification.setStatus("UNREAD");
+        notification.setCreatedAt(LocalDateTime.now());
+        notificationRepo.save(notification);
     }
+
+    public Page<Notification> getUserNotifications(Long userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return notificationRepo.findByUserId(userId, pageable);
+    }
+
+    public Page<Notification> getStaffNotifications(String staffUserId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return notificationRepo.findByStaffUserId(staffUserId, pageable);
+    }
+
     public Notification markAsRead(Long id) {
         Notification n = notificationRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Notification not found"));

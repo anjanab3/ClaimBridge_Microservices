@@ -6,6 +6,7 @@ import com.cts.report.dto.AuditLogDTO;
 import com.cts.report.entity.AuditLog;
 import com.cts.report.entity.Report;
 import com.cts.report.repository.AuditLogRepository;
+import com.cts.report.repository.KPIRepository;
 import com.cts.report.repository.ReportRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,6 +29,9 @@ public class ReportingService {
 
     @Autowired
     private AuditLogRepository auditLogRepository;
+
+    @Autowired
+    private KPIRepository kpiRepository;
 
     // Report Retrieval and Generation
 
@@ -47,10 +52,14 @@ public class ReportingService {
     }
 
     public ReportResponseDTO generateReport(ReportRequestDTO request) {
-        String scope = request.getScope().toUpperCase(); 
+        String scope = request.getScope().toUpperCase();
         Map<String, Object> metrics = buildMetrics(scope, request.getParametersJSON());
 
-        Report report = new Report();
+        // Upsert — refresh the existing report for this scope instead of creating duplicates
+        Report report = reportRepository
+                .findTopByScopeIgnoreCaseOrderByGeneratedAtDesc(scope)
+                .orElse(new Report());
+
         report.setScope(scope);
         report.setParametersJSON(request.getParametersJSON());
         report.setMetricsJSON(metrics);
@@ -133,22 +142,66 @@ public class ReportingService {
 
     private Map<String, Object> buildMetrics(String scope, Map<String, Object> params) {
         Map<String, Object> metrics = new HashMap<>();
-        metrics.put("generatedAt", LocalDateTime.now().toString());
-        metrics.put("scope", scope);
+        metrics.put("Report Generated At", LocalDateTime.now().toString());
+
         switch (scope) {
             case "OPERATIONAL" -> {
-                metrics.put("cycleTimeTarget", "7 days");
-                metrics.put("backlogStatus", "computed from KPI service");
+                // Audit-log counts
+                long totalEvents    = auditLogRepository.count();
+                long claimCreates   = auditLogRepository.countByResourceIgnoreCaseAndActionIgnoreCase("Claim", "CREATE");
+                long statusChanges  = auditLogRepository.countByResourceIgnoreCaseAndActionIgnoreCase("Claim", "STATUS_CHANGE");
+                long triageEvents   = auditLogRepository.countByResourceIgnoreCaseAndActionIgnoreCase("Claim", "TRIAGE");
+                long invChanges     = auditLogRepository.countByResourceIgnoreCaseAndActionIgnoreCase("Investigation", "STATUS_CHANGE");
+
+                metrics.put("Total Audit Events",             totalEvents);
+                metrics.put("Claims Submitted",               claimCreates);
+                metrics.put("Claim Status Changes",           statusChanges);
+                metrics.put("Triage Decisions Applied",       triageEvents);
+                metrics.put("Investigation Status Changes",   invChanges);
+
+                // KPI values
+                metrics.put("Claim Backlog (KPI)",            kpiValue("CLAIM_BACKLOG"));
+                metrics.put("Avg Cycle Time — days (KPI)",    kpiValue("AVG_CYCLE_TIME_DAYS"));
+                metrics.put("Open Investigations (KPI)",      kpiValue("OPEN_INVESTIGATIONS"));
+                metrics.put("Avg Investigation Duration (KPI)", kpiValue("AVG_INVESTIGATION_DURATION_DAYS"));
             }
             case "COMPLIANCE" -> {
-                metrics.put("regulatoryPeriod", params != null ? params.getOrDefault("period", "MONTHLY") : "MONTHLY");
-                metrics.put("auditTrailIncluded", true);
+                long totalLogs      = auditLogRepository.count();
+                long createActions  = auditLogRepository.countByActionIgnoreCase("CREATE");
+                long statusActions  = auditLogRepository.countByActionIgnoreCase("STATUS_CHANGE");
+                long triageActions  = auditLogRepository.countByActionIgnoreCase("TRIAGE");
+                long fraudAlertLogs = auditLogRepository.countByResourceIgnoreCase("FraudAlert");
+
+                metrics.put("Total Audit Log Entries",        totalLogs);
+                metrics.put("CREATE Actions",                 createActions);
+                metrics.put("STATUS_CHANGE Actions",          statusActions);
+                metrics.put("TRIAGE Actions",                 triageActions);
+                metrics.put("Fraud Alert Audit Entries",      fraudAlertLogs);
+                metrics.put("Regulatory Period",              params != null ? params.getOrDefault("period", "MONTHLY") : "MONTHLY");
+                metrics.put("Audit Trail Included",           true);
+                metrics.put("Settlement Rate % (KPI)",        kpiValue("SETTLEMENT_RATE"));
             }
             case "FRAUD" -> {
-                metrics.put("fraudDetectionRate", "computed from KPI service");
-                metrics.put("openAlerts", "computed from KPI service");
+                long fraudAlertCreates  = auditLogRepository.countByResourceIgnoreCaseAndActionIgnoreCase("FraudAlert", "CREATE");
+                long fraudAlertChanges  = auditLogRepository.countByResourceIgnoreCaseAndActionIgnoreCase("FraudAlert", "STATUS_CHANGE");
+
+                metrics.put("Fraud Alerts Created",           fraudAlertCreates);
+                metrics.put("Fraud Alert Status Changes",     fraudAlertChanges);
+                metrics.put("Open Fraud Alerts (KPI)",        kpiValue("OPEN_FRAUD_ALERTS"));
+                metrics.put("Fraud Detection Rate % (KPI)",   kpiValue("FRAUD_DETECTION_RATE"));
+            }
+            case "FINANCE" -> {
+                metrics.put("Total Settled Amount (KPI)",     kpiValue("TOTAL_SETTLED_AMOUNT"));
+                metrics.put("Settlement Rate % (KPI)",        kpiValue("SETTLEMENT_RATE"));
             }
         }
         return metrics;
+    }
+
+    /** Returns the current KPI value as a plain number, or 0 if not found. */
+    private BigDecimal kpiValue(String name) {
+        return kpiRepository.findByNameIgnoreCase(name)
+                .map(k -> k.getCurrentValue() != null ? k.getCurrentValue() : BigDecimal.ZERO)
+                .orElse(BigDecimal.ZERO);
     }
 }

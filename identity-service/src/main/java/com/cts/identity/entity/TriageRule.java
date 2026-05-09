@@ -23,6 +23,7 @@ public class TriageRule {
     private String conditionsJSON;
 
     @Enumerated(EnumType.STRING)
+    @Column(columnDefinition = "VARCHAR(20)")
     private Priority priority;
 
     private String assignedQueue;

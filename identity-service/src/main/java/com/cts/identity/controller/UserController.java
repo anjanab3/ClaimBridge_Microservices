@@ -44,10 +44,12 @@ public class UserController {
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String userid,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String search) {
 
         if ("ALL_USERS".equalsIgnoreCase(type))
-            return ResponseEntity.ok(userService.findAllUsers(page, size));
+            return ResponseEntity.ok(userService.findAllUsers(page, size, role, search));
 
         if (userid != null) {
             try {

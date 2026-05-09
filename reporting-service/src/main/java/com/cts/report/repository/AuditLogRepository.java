@@ -18,4 +18,10 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
     Page<AuditLog> findByActionIgnoreCase(String action, Pageable pageable);
 
     Page<AuditLog> findByTimestampBetween(LocalDateTime from, LocalDateTime to, Pageable pageable);
+
+    long countByResourceIgnoreCase(String resource);
+
+    long countByActionIgnoreCase(String action);
+
+    long countByResourceIgnoreCaseAndActionIgnoreCase(String resource, String action);
 }

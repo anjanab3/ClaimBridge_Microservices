@@ -74,7 +74,7 @@ public class InvestigationService {
                 settlement = new Settlement();
                 settlement.setClaim(claim);
                 settlement.setRecommendedAmount(dto.getRecommendedAmount());
-                settlement.setRecommendedBy(recommendedBy);  // ← from JWT
+                settlement.setRecommendedBy(recommendedBy);
                 settlement.setRecommendedAt(LocalDateTime.now());
                 settlement.setStatus(Status.IN_REVIEW);
 
@@ -139,7 +139,7 @@ public class InvestigationService {
         if (settlement != null) {
             SettlementResponseDTO sDto = new SettlementResponseDTO();
             sDto.setSettlementId(settlement.getSettlementId());
-            sDto.setClaimId(inv.getClaim().getClaimId());
+            sDto.setClaimId(settlement.getClaim() != null ? settlement.getClaim().getClaimId() : null);
             sDto.setRecommendedAt(settlement.getRecommendedAt());
             sDto.setRecommendedAmount(settlement.getRecommendedAmount());
             sDto.setRecommendedBy(settlement.getRecommendedBy());

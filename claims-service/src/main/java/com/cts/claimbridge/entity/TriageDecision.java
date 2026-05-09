@@ -20,7 +20,8 @@ public class TriageDecision {
     private Long ruleId;
 
     @Enumerated(EnumType.STRING)
-    private Priority priority; // e.g., HIGH, MEDIUM, LOW
+    @Column(columnDefinition = "VARCHAR(20)")
+    private Priority priority; // e.g., CRITICAL, HIGH, MEDIUM, LOW
 
     private String assignedQueue;
     private String assignedTo;

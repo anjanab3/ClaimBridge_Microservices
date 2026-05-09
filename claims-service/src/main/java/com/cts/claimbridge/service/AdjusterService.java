@@ -41,7 +41,7 @@ public class AdjusterService {
 
     List<ClaimFullResponseDTO> resultList = decisions.stream()
             .map(decision -> {
-                Claim claim = claimRepo.findById(decision.getClaim().getClaimId())
+                Claim claim = claimRepo.findById(decision.getClaimId())
                         .orElseThrow(() -> new RuntimeException("Claim not found"));
 
                 Investigation investigation = investigationRepo

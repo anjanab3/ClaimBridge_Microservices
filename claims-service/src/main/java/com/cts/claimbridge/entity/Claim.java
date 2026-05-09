@@ -57,11 +57,11 @@ public class Claim {
     private Investigation investigation;
 
     @OneToMany(mappedBy = "claim", cascade = CascadeType.ALL)
-    @JsonBackReference(value = "claim")
+    @JsonManagedReference(value = "claim")
     private List<Evidence> evidenceList;
 
     @OneToMany(mappedBy = "claim", cascade = CascadeType.ALL)
-    @JsonBackReference(value = "triage")
+    @JsonManagedReference(value = "triage")
     private List<TriageDecision> triageDecisionList;
 
     @OneToOne(mappedBy = "claim", cascade = CascadeType.ALL)

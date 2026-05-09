@@ -2,7 +2,6 @@ package com.cts.claimbridge.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import java.util.List;
 
 @Entity
 @Table(name = "policyholders")
@@ -19,13 +18,7 @@ public class PolicyHolder {
     private String businessType;
     private String taxID;
 
-    private Long policyId;
-    private Long userId;
-
-    // @OneToMany(mappedBy = "holder",cascade = CascadeType.ALL)//A
-    // private List<Policy> policy;//A
-
-    // @OneToMany(mappedBy="policyHolder",cascade = CascadeType.ALL)
-    // private List<User> userList;
-
+    // holderId is referenced by users.holderId in identity-service — that is the
+    // single source of truth for the User ↔ PolicyHolder link.
+    // policyId is referenced by policies.holderId in this service.
 }

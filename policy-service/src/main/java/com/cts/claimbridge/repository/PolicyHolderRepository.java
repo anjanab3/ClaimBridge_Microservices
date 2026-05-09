@@ -6,5 +6,4 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface PolicyHolderRepository extends JpaRepository<PolicyHolder,Long> {
-    PolicyHolder findByPolicyId(Long policyId); //A
 }

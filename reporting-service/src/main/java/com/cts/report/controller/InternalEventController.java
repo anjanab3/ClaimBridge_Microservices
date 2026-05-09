@@ -1,5 +1,6 @@
 package com.cts.report.controller;
 
+import com.cts.report.dto.AuditEventDTO;
 import com.cts.report.dto.ClaimEventDTO;
 import com.cts.report.dto.InvestigationEventDTO;
 import com.cts.report.service.KPIService;
@@ -30,21 +31,25 @@ public class InternalEventController {
     @PostMapping("/claim-status-changed")
     public ResponseEntity<String> onClaimStatusChanged(@RequestBody ClaimEventDTO event) {
 
-        // 1. Update KPIs
-        kpiService.processClaimEvent(event);
+        // 1. Update KPIs — isolated so a KPI failure never blocks audit or notifications
+        try { kpiService.processClaimEvent(event); } catch (Exception ignored) {}
 
         // 2. Write audit log
-        reportingService.saveAuditLog(
-                event.getUserId(), "Claim", event.getClaimId(), "STATUS_CHANGE",
-                "Claim " + event.getClaimId() + " changed from "
-                        + event.getPreviousStatus() + " to " + event.getNewStatus());
+        try {
+            reportingService.saveAuditLog(
+                    event.getUserId(), "Claim", event.getClaimId(), "STATUS_CHANGE",
+                    "Claim " + event.getClaimId() + " changed from "
+                            + event.getPreviousStatus() + " to " + event.getNewStatus());
+        } catch (Exception ignored) {}
 
         // 3. Send in-app notification to the affected user
-        if (event.getUserId() != null) {
-            String message = buildClaimNotification(event);
-            notificationService.createNotification(
-                    event.getUserId(), event.getClaimId(), message, resolveClaimCategory(event.getNewStatus()));
-        }
+        try {
+            if (event.getUserId() != null) {
+                String message = buildClaimNotification(event);
+                notificationService.createNotification(
+                        event.getUserId(), event.getClaimId(), message, resolveClaimCategory(event.getNewStatus()));
+            }
+        } catch (Exception ignored) {}
 
         return ResponseEntity.ok("Event processed");
     }
@@ -53,26 +58,40 @@ public class InternalEventController {
     @PostMapping("/investigation-changed")
     public ResponseEntity<String> onInvestigationChanged(@RequestBody InvestigationEventDTO event) {
 
-        // 1. Update KPIs
-        kpiService.processInvestigationEvent(event);
+        // 1. Update KPIs — isolated so a KPI failure never blocks audit or notifications
+        try { kpiService.processInvestigationEvent(event); } catch (Exception ignored) {}
 
         // 2. Write audit log
-        reportingService.saveAuditLog(
-                event.getUserId(), "Investigation", event.getInvestigationId(), "STATUS_CHANGE",
-                "Investigation " + event.getInvestigationId() + " (Claim " + event.getClaimId()
-                        + ") changed from " + event.getPreviousStatus() + " to " + event.getNewStatus());
+        try {
+            reportingService.saveAuditLog(
+                    event.getUserId(), "Investigation", event.getInvestigationId(), "STATUS_CHANGE",
+                    "Investigation " + event.getInvestigationId() + " (Claim " + event.getClaimId()
+                            + ") changed from " + event.getPreviousStatus() + " to " + event.getNewStatus());
+        } catch (Exception ignored) {}
 
         // 3. Send in-app notification
-        if (event.getUserId() != null) {
-            String message = "Investigation #" + event.getInvestigationId()
-                    + " for Claim #" + event.getClaimId()
-                    + " changed from " + event.getPreviousStatus()
-                    + " to " + event.getNewStatus() + ".";
-            notificationService.createNotification(
-                    event.getUserId(), event.getClaimId(), message, "INVESTIGATION");
-        }
+        try {
+            if (event.getUserId() != null) {
+                String message = "Investigation #" + event.getInvestigationId()
+                        + " for Claim #" + event.getClaimId()
+                        + " changed from " + event.getPreviousStatus()
+                        + " to " + event.getNewStatus() + ".";
+                notificationService.createNotification(
+                        event.getUserId(), event.getClaimId(), message, "INVESTIGATION");
+            }
+        } catch (Exception ignored) {}
 
         return ResponseEntity.ok("Event processed");
+    }
+
+    // Generic audit log — used for FraudAlert, Policy, or any resource
+    // that doesn't have a dedicated event endpoint
+    @PostMapping("/audit")
+    public ResponseEntity<String> logAuditEvent(@RequestBody AuditEventDTO event) {
+        reportingService.saveAuditLog(
+                event.getUserId(), event.getResource(), event.getResourceId(),
+                event.getAction(), event.getDetails());
+        return ResponseEntity.ok("Audit event logged");
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

@@ -1,6 +1,8 @@
 package com.cts.claimbridge.service;
 
 import com.cts.claimbridge.client.IdentityServiceClient;
+import com.cts.claimbridge.dto.FraudAnalystRequestDTO;
+import com.cts.claimbridge.dto.FraudAnalystResponseDTO;
 import com.cts.claimbridge.dto.TriageRuleDTO;
 import feign.FeignException;
 import com.cts.claimbridge.entity.*;
@@ -11,6 +13,7 @@ import com.cts.claimbridge.repository.TriageDecisionRepository;
 import com.cts.claimbridge.util.ClaimStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -18,8 +21,6 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.cts.claimbridge.util.TriageStatus;
-import com.cts.claimbridge.dto.FraudAnalystRequestDTO;
-import com.cts.claimbridge.dto.FraudAnalystResponseDTO;
 
 import jakarta.persistence.EntityNotFoundException;
 
@@ -105,13 +106,12 @@ public class FraudAnalystService {
         switch (request.getDecision().toUpperCase()) {
 
             case "CLEAR" -> {
-                // Not fraud — close the alert and send claim to ADJUSTER
                 alert.setStatus("RESOLVED");
                 alertRepository.save(alert);
-                routeToAdjuster(alert, null); // no specific adjuster on CLEAR
+                routeToAdjuster(alert, null);
                 return FraudAnalystResponseDTO.builder()
                         .alertId(alert.getAlertId())
-                        .claimId(alert.getClaim().getClaimId())
+                        .claimId(alert.getClaimId())
                         .status("RESOLVED")
                         .reason("Claim cleared as non-fraudulent")
                         .message("Fraud alert resolved. Claim has been routed to the ADJUSTER queue.")
@@ -119,14 +119,13 @@ public class FraudAnalystService {
             }
 
             case "ESCALATE" -> {
-                // Needs senior review — stays in FRAUD queue
                 alert.setStatus("ESCALATED");
                 alert.setEscalatedTo("FA-001");
                 alert.setEscalatedAt(LocalDateTime.now());
                 alertRepository.save(alert);
                 return FraudAnalystResponseDTO.builder()
                         .alertId(alert.getAlertId())
-                        .claimId(alert.getClaim().getClaimId())
+                        .claimId(alert.getClaimId())
                         .status("ESCALATED")
                         .reason("Requires senior fraud analyst review")
                         .message("Alert escalated to SENIOR_FRAUD_ANALYST.")
@@ -134,7 +133,6 @@ public class FraudAnalystService {
             }
 
             case "REJECT" -> {
-                // Confirmed fraud — claim is denied, no further routing
                 alert.setStatus("FRAUD");
                 Optional<Claim> claimresponse = claimRepository.findById(alert.getClaimId());
                 claimresponse.get().setStatus(ClaimStatus.REJECTED);
@@ -153,7 +151,7 @@ public class FraudAnalystService {
         }
     }
 
-    // Reassign to a specific ADJUSTER — fraud analyst needs adjuster input but fraud case is not closed
+    // Reassign to a specific ADJUSTER
     public FraudAnalystResponseDTO reassignToAdjuster(Long alertId, FraudAnalystRequestDTO request) {
         FraudAlert alert = alertRepository.findById(alertId)
                 .orElseThrow(() -> new EntityNotFoundException("Fraud Alert not found for ID: " + alertId));
@@ -167,7 +165,7 @@ public class FraudAnalystService {
 
         return FraudAnalystResponseDTO.builder()
                 .alertId(alert.getAlertId())
-                .claimId(alert.getClaim().getClaimId())
+                .claimId(alert.getClaimId())
                 .status("REASSIGNED")
                 .reason("Adjuster review required")
                 .message("Claim has been reassigned to adjuster: " +
@@ -175,16 +173,8 @@ public class FraudAnalystService {
                 .build();
     }
 
-//    // Notify the claimant
-//    public String notifyClaimant(String message) {
-//        return "Claimant notified: " + message;
-//    }
-
-
     // Creates a new TriageDecision routing the claim to the ADJUSTER queue
-    // adjusterRoleCode: role_code of the specific adjuster (e.g. CA-001), or null for generic queue
     private void routeToAdjuster(FraudAlert alert, String adjusterRoleCode) {
-        // Fetch default rule from identity-service via Feign
         TriageRuleDTO defaultRule;
         try {
             defaultRule = identityServiceClient.getDefaultRule();
@@ -194,17 +184,16 @@ public class FraudAnalystService {
                 "(identity-service returned " + e.status() + "). Ensure identity-service is running.");
         }
 
-        // Prevent duplicate — skip if claim is already in ADJUSTER queue
         boolean alreadyAssigned = decisionRepository
-                .findTopByClaimIdOrderByAssignedAtDesc(alert.getClaim().getClaimId())
+                .findTopByClaimIdOrderByAssignedAtDesc(alert.getClaimId())
                 .map(d -> "ADJUSTER".equalsIgnoreCase(d.getAssignedQueue()))
                 .orElse(false);
 
         if (alreadyAssigned)
-            throw new IllegalStateException("Claim ID " + alert.getClaim().getClaimId() + " is already in the ADJUSTER queue");
+            throw new IllegalStateException("Claim ID " + alert.getClaimId() + " is already in the ADJUSTER queue");
 
         TriageDecision decision = new TriageDecision();
-        decision.setClaimId(alert.getClaim().getClaimId());
+        decision.setClaimId(alert.getClaimId());
         decision.setRuleId(defaultRule.getRuleId());
         decision.setPriority(defaultRule.getPriority());
         decision.setAssignedQueue("ADJUSTER");
@@ -213,5 +202,4 @@ public class FraudAnalystService {
         decision.setAssignedAt(LocalDateTime.now());
         decisionRepository.save(decision);
     }
-
 }

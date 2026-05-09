@@ -12,7 +12,8 @@ public class  Notification {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long notificationID;
-    private Long  userId;
+    private Long   userId;      // policyholder (numeric Long)
+    private String staffUserId; // adjuster / fraud analyst (e.g. "CA-0001")
     private String message;
     private String category;
     private String status;
