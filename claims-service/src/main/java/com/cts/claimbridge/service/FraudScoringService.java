@@ -193,7 +193,7 @@ public class FraudScoringService {
         return true;
     }
 
-    // ── Feign helpers ─────────────────────────────────────────────────────────
+    // Feign helpers — fetch policy details and related policy IDs for rules
 
     private PolicyDTO fetchPolicy(Long policyId) {
         try {
@@ -213,7 +213,7 @@ public class FraudScoringService {
         }
     }
 
-    // ── coverageJSON parsers — now take PolicyDTO instead of Claim ────────────
+    // coverageJSON parsers — now take PolicyDTO instead of Claim 
 
     private Double parseDeductible(PolicyDTO policy) {
         Map<String, Object> coverage = parseCoverageJson(policy);

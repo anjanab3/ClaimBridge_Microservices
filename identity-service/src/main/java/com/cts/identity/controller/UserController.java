@@ -18,7 +18,7 @@ public class UserController {
 
     @Autowired private UserService userService;
 
-    /** Returns active users for a given role — used by fraud analyst adjuster dropdown */
+    // Returns active users for a given role — used by fraud analyst adjuster dropdown
     @GetMapping("/by-role")
     public ResponseEntity<?> getUsersByRole(@RequestParam String role) {
         try {
@@ -28,7 +28,7 @@ public class UserController {
         }
     }
 
-    /** Returns the currently authenticated user's profile (any role) */
+    // Returns the currently authenticated user's profile (any role)
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser(Authentication authentication) {
         try {
