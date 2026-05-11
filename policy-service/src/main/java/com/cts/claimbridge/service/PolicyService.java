@@ -6,6 +6,7 @@ import com.cts.claimbridge.repository.PolicyRepository;
 import com.cts.claimbridge.util.PolicyStatus;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PolicyService {
@@ -33,12 +35,16 @@ public class PolicyService {
     }
 
     public List<Policy> savePolicies(List<Policy> policies) {
-      for(Policy policy:policies){
-          if(policyRepo.existsByPolicyNumber(policy.getPolicyNumber())){
-              throw new RuntimeException("Policy Number already exists");
-          }
-      }
-        return policyRepo.saveAll(policies);
+        log.info("Saving {} policies", policies.size());
+        for (Policy policy : policies) {
+            if (policyRepo.existsByPolicyNumber(policy.getPolicyNumber())) {
+                log.warn("Duplicate policy number: {}", policy.getPolicyNumber());
+                throw new RuntimeException("Policy Number already exists");
+            }
+        }
+        List<Policy> saved = policyRepo.saveAll(policies);
+        log.info("Saved {} policies successfully", saved.size());
+        return saved;
     }
 
     public List<Long> findPolicyIdsByHolderId(Long holderId) {

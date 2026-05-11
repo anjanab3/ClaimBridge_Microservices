@@ -10,6 +10,7 @@ import com.cts.claimbridge.repository.EvidenceRepository;
 import com.cts.claimbridge.util.ClaimStatus;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ClaimService {
@@ -35,8 +37,10 @@ public class ClaimService {
     private PolicyServiceClient policyServiceClient;
 
     public Claim save(Claim claim, long policyId, long holderId) {
+        log.info("Saving new claim for policyId={} holderId={}", policyId, holderId);
         PolicyDTO policy = fetchPolicy(policyId);
         if (policy == null) {
+            log.warn("Policy not found for policyId={}", policyId);
             throw new RuntimeException("Policy not found with ID: " + policyId);
         }
 
@@ -44,6 +48,7 @@ public class ClaimService {
         boolean hasActiveClaim = claimRepository.existsByPolicyIdAndStatusIn(
                 policyId, List.of(ClaimStatus.IN_COMING, ClaimStatus.IN_REVIEW));
         if (hasActiveClaim) {
+            log.warn("Duplicate active claim detected for policyId={}", policyId);
             throw new RuntimeException(
                 "A claim for this policy is already in progress. " +
                 "You cannot raise another claim until the current one is resolved.");
@@ -52,6 +57,7 @@ public class ClaimService {
         claim.setPolicyId(policyId);
         claim.setHolderId(holderId);
         Claim savedClaim = claimRepository.save(claim);
+        log.info("Claim saved with claimId={}", savedClaim.getClaimId());
 
         fraudScoringService.scoreAndPersist(savedClaim);
 
@@ -66,6 +72,7 @@ public class ClaimService {
     }
 
     public Claim updateClaimStatus(Long claimId, ClaimStatus status) {
+        log.info("Updating status of claimId={} to {}", claimId, status);
         Claim claim = claimRepository.findById(claimId)
                 .orElseThrow(() -> new RuntimeException("Claim Not Found"));
 
@@ -125,6 +132,7 @@ public class ClaimService {
 
     @Transactional
     public Claim validateClaim(Long claimId, ClaimStatus newStatus) {
+        log.info("Validating claimId={} with status={}", claimId, newStatus);
         Claim claim = claimRepository.findById(claimId)
                 .orElseThrow(() -> new RuntimeException("Claim not found with ID: " + claimId));
 
