@@ -1,8 +1,0 @@
-{
-    "java.configuration.updateBuildConfiguration": "interactive",
-    "workbench.editor.enablePreviewFromCodeNavigation": true,
-    "workbench.editor.enablePreviewFromQuickOpen": false,
-    "git.mergeEditor": true,
-    "merge-conflict.autoNavigateNextConflict.enabled": true,
-    "workbench.editor.enablePreview": false
-}
