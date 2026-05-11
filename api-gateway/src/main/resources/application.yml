@@ -1,0 +1,123 @@
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      # Deduplicate CORS headers — downstream services also emit them, causing browser errors
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials
+
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: "http://localhost:5173"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+
+      routes:
+        # ── Identity Service (port 9093) ────────────────────────────────────────
+        - id: identity-service
+          uri: lb://identity-service
+          predicates:
+            - Path=/api/identity/**
+
+        # ── Claims Service (port 9092) ───────────────────────────────────────────
+        - id: claims-service-claims
+          uri: lb://claims
+          predicates:
+            - Path=/api/claims/**
+
+        - id: claims-service-adjuster
+          uri: lb://claims
+          predicates:
+            - Path=/api/adjuster/**
+
+        - id: claims-service-fraud
+          uri: lb://claims
+          predicates:
+            - Path=/api/fraud/**
+
+        - id: claims-service-investigations
+          uri: lb://claims
+          predicates:
+            - Path=/api/investigations/**
+
+        - id: claims-service-triage
+          uri: lb://claims
+          predicates:
+            - Path=/api/triage/**
+
+        - id: claims-service-notifications
+          uri: lb://claims
+          predicates:
+            - Path=/api/notifications/**
+
+        # ── Policy Service (port 9091) ───────────────────────────────────────────
+        - id: policy-service-policies
+          uri: lb://policy
+          predicates:
+            - Path=/api/policies/**
+
+        - id: policy-service-holders
+          uri: lb://policy
+          predicates:
+            - Path=/api/policyholders/**
+
+        # ── Payment Service (port 9094) ──────────────────────────────────────────
+        - id: payment-service-payments
+          uri: lb://payment-service
+          predicates:
+            - Path=/api/payments/**
+
+        - id: payment-service-settlement
+          uri: lb://payment-service
+          predicates:
+            - Path=/api/settlement/**
+
+        # ── Reporting Service (port 9095) ────────────────────────────────────────
+        - id: reporting-service-reporting
+          uri: lb://reporting-service
+          predicates:
+            - Path=/api/reporting/**
+
+        - id: reporting-service-underwriter
+          uri: lb://reporting-service
+          predicates:
+            - Path=/api/underwriter/**
+
+        - id: reporting-service-sla
+          uri: lb://reporting-service
+          predicates:
+            - Path=/api/sla/**
+
+server:
+  port: 8080
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+jwt:
+  secret: bcf55f70ca05f6a311ec31e304e96e42f511d43836c83da0548fa1b2cb67ec8f
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+
+logging:
+  level:
+    com.cts.gateway: DEBUG
+    org.springframework.cloud.gateway: INFO

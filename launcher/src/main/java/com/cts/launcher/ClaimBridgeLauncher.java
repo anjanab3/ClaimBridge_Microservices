@@ -27,12 +27,13 @@ public class ClaimBridgeLauncher {
         System.out.println("=================================================\n");
 
         List<ServiceConfig> services = List.of(
-            new ServiceConfig("eureka-server",    "eureka-server/target/eureka-server-0.0.1-SNAPSHOT.jar",          8761, 60, "/"),
-            new ServiceConfig("policy-service",   "policy-service/target/claimbridge_policy-0.0.1-SNAPSHOT.jar",    9091, 90, "/v3/api-docs"),
-            new ServiceConfig("claims-service",   "claims-service/target/claimbridge_claims-0.0.1-SNAPSHOT.jar",    9092, 90, "/v3/api-docs"),
-            new ServiceConfig("identity-service", "identity-service/target/identity-service-0.0.1-SNAPSHOT.jar",   9093, 90, "/v3/api-docs"),
-            new ServiceConfig("payment-service",  "payment-service/target/payment-service-0.0.1-SNAPSHOT.jar",     9094, 90, "/v3/api-docs"),
-            new ServiceConfig("reporting-service","reporting-service/target/reporting-service-0.0.1-SNAPSHOT.jar", 9095, 90, "/actuator/health")
+            new ServiceConfig("eureka-server",    "eureka-server/target/eureka-server-0.0.1-SNAPSHOT.jar",          8761, 60,  "/"),
+            new ServiceConfig("api-gateway",      "api-gateway/target/api-gateway-0.0.1-SNAPSHOT.jar",              8080, 90,  "/actuator/health"),
+            new ServiceConfig("policy-service",   "policy-service/target/claimbridge_policy-0.0.1-SNAPSHOT.jar",    9091, 90,  "/v3/api-docs"),
+            new ServiceConfig("claims-service",   "claims-service/target/claimbridge_claims-0.0.1-SNAPSHOT.jar",    9092, 90,  "/v3/api-docs"),
+            new ServiceConfig("identity-service", "identity-service/target/identity-service-0.0.1-SNAPSHOT.jar",   9093, 90,  "/v3/api-docs"),
+            new ServiceConfig("payment-service",  "payment-service/target/payment-service-0.0.1-SNAPSHOT.jar",     9094, 90,  "/v3/api-docs"),
+            new ServiceConfig("reporting-service","reporting-service/target/reporting-service-0.0.1-SNAPSHOT.jar", 9095, 90,  "/actuator/health")
         );
 
         // Verify all JARs exist before starting anything
@@ -198,11 +199,12 @@ public class ClaimBridgeLauncher {
         System.out.println("  " + "-".repeat(60));
 
         Map<String, Integer> ports = Map.of(
-            "eureka-server", 8761,
-            "policy-service", 9091,
-            "claims-service", 9092,
+            "eureka-server",    8761,
+            "api-gateway",      8080,
+            "policy-service",   9091,
+            "claims-service",   9092,
             "identity-service", 9093,
-            "payment-service", 9094,
+            "payment-service",  9094,
             "reporting-service", 9095
         );
 
@@ -212,9 +214,10 @@ public class ClaimBridgeLauncher {
                     icon + name, status, ports.getOrDefault(name, 0));
         });
 
-        System.out.println("\n  Swagger UI (API docs):");
+        System.out.println("\n  API Gateway (all traffic): http://localhost:8080");
+        System.out.println("\n  Swagger UI (per-service, direct access):");
         ports.entrySet().stream()
-            .filter(e -> !e.getKey().equals("eureka-server"))
+            .filter(e -> !e.getKey().equals("eureka-server") && !e.getKey().equals("api-gateway"))
             .forEach(e -> System.out.printf("    %-20s http://localhost:%d/swagger-ui.html%n",
                     e.getKey(), e.getValue()));
         System.out.println("  Eureka Dashboard      : http://localhost:8761");
