@@ -40,10 +40,8 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponseDTO(jwtService.generateToken(user)));
     }
 
-    /**
-     * Public self-registration — no auth required.
-     * Only USER role is permitted; admin creates other roles via /register.
-     */
+    // Public self-registration — no auth required.
+    // Only USER role is permitted; admin creates other roles via /register.
     @PostMapping("/register/public")
     public ResponseEntity<?> registerPublic(@RequestBody CreateUserRequestDTO req) {
         // Force USER role — prevent privilege escalation via self-registration

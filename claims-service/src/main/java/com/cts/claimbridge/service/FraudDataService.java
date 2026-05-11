@@ -9,9 +9,6 @@ import com.cts.claimbridge.repository.ClaimRepository;
 import com.cts.claimbridge.repository.FraudAlertRepository;
 import com.cts.claimbridge.repository.FraudScoreRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -85,35 +82,5 @@ public class FraudDataService {
         dto.setAlerts(alertDTOs);
         return dto;
     }
-
-//    Returns all claims that have been scored by the fraud engine.
-//    public List<FraudDataResponseDTO> getAllFlaggedClaims() {
-//        List<FraudScore> scores = scoreRepo.findAll();
-//        if (scores.isEmpty()) return null;
-//
-//        return scores.stream().map(score -> {
-//            List<FraudAlert> alerts = alertRepo.findByClaim_ClaimId(score.getClaimId());
-//
-//            List<FraudAlertDTO> alertDTOs = alerts.stream().map(a -> {
-//                FraudAlertDTO ad = new FraudAlertDTO();
-//                ad.setAlertId(a.getAlertId());
-//                ad.setScoreId(a.getFraudScore() != null ? a.getFraudScore().getScoreId() : null);
-//                ad.setReason(a.getReason());
-//                ad.setEscalatedTo(a.getEscalatedTo());
-//                ad.setEscalatedAt(a.getEscalatedAt());
-//                ad.setStatus(a.getStatus());
-//                return ad;
-//            }).collect(Collectors.toList());
-//
-//            FraudDataResponseDTO dto = new FraudDataResponseDTO();
-//            dto.setScoreId(score.getScoreId());
-//            dto.setClaimId(score.getClaimId());       // direct field — no lazy-load risk
-//            dto.setScoreValue(score.getScoreValue());
-//            dto.setFactorsJSON(score.getFactorsJSON());
-//            dto.setCalculatedAt(score.getCalculatedAt());
-//            dto.setAlerts(alertDTOs.isEmpty() ? null : alertDTOs);
-//            return dto;
-//        }).collect(Collectors.toList());
-//    }
 }
 

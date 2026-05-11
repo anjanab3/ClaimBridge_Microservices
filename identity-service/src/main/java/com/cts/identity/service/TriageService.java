@@ -32,7 +32,7 @@ public class TriageService {
     @Value("${claims.service.url}")
     private String claimsServiceUrl;
 
-    // ── Triage Rules ─────────────────────────────────────────────────────────
+    // Triage Rules for fraud scoring and claim assignment
 
     public Page<TriageRuleResponseDTO> getAllRules(int page, int size) {
         return ruleRepository.findAll(PageRequest.of(page, size)).map(this::toRuleDTO);
@@ -64,7 +64,7 @@ public class TriageService {
         return toRuleDTO(ruleRepository.save(rule));
     }
 
-    // ── Triage Decisions ─────────────────────────────────────────────────────
+    // Triage Decisions for claims in review
 
     public TriageDecisionResponseDTO createDecision(TriageDecisionRequestDTO req) {
         TriageRule rule = ruleRepository.findById(req.getRuleId())
@@ -137,7 +137,7 @@ public class TriageService {
         return toDecisionDTO(decisionRepository.save(decision), "Triage decision updated successfully");
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
+    // Helpers 
 
     private void applyRuleFields(TriageRule rule, TriageRuleRequestDTO req) {
         if (req.getName()          != null) rule.setName(req.getName());

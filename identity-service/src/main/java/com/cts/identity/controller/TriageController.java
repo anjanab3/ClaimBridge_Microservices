@@ -18,7 +18,7 @@ public class TriageController {
 
     @Autowired private TriageService triageService;
 
-    // ── Rules ────────────────────────────────────────────────────────────────
+    // Rules 
 
     @PreAuthorize("hasAnyAuthority('ADMIN','CLAIMS_INTAKE_AGENT')")
     @GetMapping("/rules")
@@ -70,7 +70,7 @@ public class TriageController {
         }
     }
 
-    // ── Decisions ────────────────────────────────────────────────────────────
+    // Triage Decisions 
 
     @PreAuthorize("hasAnyAuthority('ADMIN','CLAIMS_INTAKE_AGENT')")
     @PostMapping("/decisions")

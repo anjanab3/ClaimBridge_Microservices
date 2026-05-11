@@ -9,10 +9,9 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Internal service-to-service endpoints — no JWT required.
- * Only called by other microservices (e.g. claims-service via Feign).
- */
+// Internal service-to-service endpoints — no JWT required.
+// Only called by other microservices (e.g. claims-service via Feign).
+
 @RestController
 @RequestMapping("/api/internal/triage/rules")
 public class InternalTriageController {
@@ -32,14 +31,14 @@ public class InternalTriageController {
                 .build();
     }
 
-    /** All active rules — used by claims-service for suggest logic */
+    // All active rules — used by claims-service for suggest logic and queue assignment.
     @GetMapping("/active")
     public List<TriageRuleResponseDTO> getActiveRules() {
         return ruleRepository.findByActive(true)
                 .stream().map(this::toDTO).collect(Collectors.toList());
     }
 
-    /** Single rule by ID — used by claims-service when applying a rule */
+    // Single rule by ID — used by claims-service when applying a rule
     @GetMapping("/{ruleId}")
     public ResponseEntity<TriageRuleResponseDTO> getRuleById(@PathVariable Long ruleId) {
         return ruleRepository.findById(ruleId)
@@ -47,7 +46,7 @@ public class InternalTriageController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    /** Default rule — used by claims-service FraudAnalystService */
+    // Default rule — used by claims-service FraudAnalystService when no rules match
     @GetMapping("/default")
     public ResponseEntity<TriageRuleResponseDTO> getDefaultRule() {
         return ruleRepository.findByIsDefaultTrue()
@@ -55,7 +54,7 @@ public class InternalTriageController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    /** Rules by assigned queue — used by claims-service FraudScoringService */
+    // Rules by assigned queue — used by claims-service FraudScoringService
     @GetMapping("/queue/{queue}")
     public List<TriageRuleResponseDTO> getRulesByQueue(@PathVariable String queue) {
         return ruleRepository.findByAssignedQueue(queue)
