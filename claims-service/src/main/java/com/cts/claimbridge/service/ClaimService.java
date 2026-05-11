@@ -50,6 +50,7 @@ public class ClaimService {
         }
 
         claim.setPolicyId(policyId);
+        claim.setHolderId(holderId);
         Claim savedClaim = claimRepository.save(claim);
 
         fraudScoringService.scoreAndPersist(savedClaim);

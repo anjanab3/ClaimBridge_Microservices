@@ -47,6 +47,8 @@ public class Claim {
     }
 
     private Long policyId;
+    private Long holderId;      // the policyholder this claim is filed against/for
+    private String proofDocPath; // path to claimant's relationship proof document
 //     @ManyToOne
 // @JoinColumn(name = "policy_id")
 // @JsonIgnore

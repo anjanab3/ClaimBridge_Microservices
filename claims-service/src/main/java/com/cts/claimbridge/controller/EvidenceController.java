@@ -3,8 +3,10 @@ import com.cts.claimbridge.dto.EvidenceDTO;
 import com.cts.claimbridge.dto.ResponseDTO;
 import com.cts.claimbridge.dto.VerifyevidenceRequestDTO;
 import com.cts.claimbridge.entity.Evidence;
+import com.cts.claimbridge.repository.ClaimRepository;
 import com.cts.claimbridge.service.EvidenceService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,6 +25,12 @@ import java.util.Optional;
 public class EvidenceController {
     @Autowired
     private EvidenceService evidenceService;
+
+    @Autowired
+    private ClaimRepository claimRepository;
+
+    @Value("${file.upload-dir}")
+    private String uploadDir;
 
     //@PreAuthorize("hasAuthority('USER')")
     @PostMapping("/{holderId}/{claimId}/evidence") //A
@@ -72,6 +81,31 @@ public class EvidenceController {
 //        }
 //        return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION,"attachment; filename=\"" + fileName + "\"" ).header(HttpHeaders.CONTENT_LENGTH , String.valueOf(fileBytes.length)).body(fileBytes);
 //    }
+
+    // Upload proof of relationship document for a claimant
+    @PostMapping("/{claimId}/proof")
+    public ResponseEntity<?> uploadProofDocument(
+            @PathVariable Long claimId,
+            @RequestParam("file") MultipartFile file) {
+        try {
+            com.cts.claimbridge.entity.Claim claim = claimRepository.findById(claimId)
+                    .orElseThrow(() -> new RuntimeException("Claim not found: " + claimId));
+
+            Path proofPath = Paths.get(uploadDir, "proof", String.valueOf(claimId));
+            if (!Files.exists(proofPath)) Files.createDirectories(proofPath);
+
+            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+            Path targetPath = proofPath.resolve(fileName);
+            Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+
+            claim.setProofDocPath(targetPath.toString());
+            claimRepository.save(claim);
+
+            return ResponseEntity.ok(new ResponseDTO("Proof document uploaded successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new ResponseDTO(e.getMessage()));
+        }
+    }
 
    // @PreAuthorize("hasAuthority('CLAIMS_ADJUSTER')")
     @PutMapping("/{claimId}/{evidenceId}/verify") //A

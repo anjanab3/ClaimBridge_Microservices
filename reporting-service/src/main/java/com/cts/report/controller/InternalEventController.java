@@ -94,6 +94,26 @@ public class InternalEventController {
         return ResponseEntity.ok("Audit event logged");
     }
 
+    // Called by claims-service when an adjuster verifies evidence — notifies the policyholder
+    @PostMapping("/evidence-verified")
+    public ResponseEntity<String> onEvidenceVerified(@RequestBody AuditEventDTO event) {
+
+        try {
+            reportingService.saveAuditLog(
+                    event.getUserId(), event.getResource(), event.getResourceId(),
+                    event.getAction(), event.getDetails());
+        } catch (Exception ignored) {}
+
+        try {
+            if (event.getUserId() != null) {
+                notificationService.createNotification(
+                        event.getUserId(), event.getResourceId(), event.getDetails(), "INVESTIGATION");
+            }
+        } catch (Exception ignored) {}
+
+        return ResponseEntity.ok("Evidence event processed");
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private String buildClaimNotification(ClaimEventDTO event) {

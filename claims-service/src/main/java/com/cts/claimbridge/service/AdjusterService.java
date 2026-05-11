@@ -161,6 +161,7 @@ public class AdjusterService {
             ed.setFileName(ev.getFileName());
             ed.setFileType(ev.getFileType());
             ed.setFilePath(ev.getFilePath());
+            ed.setIsVerified(ev.getVerified());
             ed.setUploadedAt(ev.getUploadedAt());
             return ed;
         }).collect(Collectors.toList());

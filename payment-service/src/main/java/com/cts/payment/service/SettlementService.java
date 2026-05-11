@@ -47,14 +47,14 @@ public class SettlementService {
 
     // Receives settlement pushed from claims-service via Feign — saves to settlement table
     public Settlement receiveSettlement(SettlementSyncDTO dto) {
-        // Avoid duplicates
-        if (settlementRepository.existsBySettlementId(dto.getSettlementId())) {
-            return settlementRepository.findById(dto.getSettlementId())
-                    .orElseThrow(() -> new RuntimeException("Settlement already exists but could not be retrieved"));
+        // Avoid duplicates — one settlement per claim
+        Optional<Settlement> existing = settlementRepository.findByClaimId(dto.getClaimId());
+        if (existing.isPresent()) {
+            return existing.get();
         }
 
         Settlement settlement = new Settlement();
-        settlement.setSettlementId(dto.getSettlementId());
+        // Do NOT set settlementId — let the DB auto-generate via @GeneratedValue(IDENTITY)
         settlement.setClaimId(dto.getClaimId());
         settlement.setRecommendedAmount(dto.getRecommendedAmount());
         settlement.setRecommendedBy(dto.getRecommendedBy());

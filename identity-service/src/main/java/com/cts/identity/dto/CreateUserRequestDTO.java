@@ -11,4 +11,5 @@ public class CreateUserRequestDTO {
     private String password;
     private Role role;
     private Long holderId;   // optional — link to a PolicyHolder
+    private String name;     // claimant full name — triggers claimant record creation when provided
 }

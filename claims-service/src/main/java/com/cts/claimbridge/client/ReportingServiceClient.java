@@ -21,4 +21,8 @@ public interface ReportingServiceClient {
     /** Fire for any other audit event (FraudAlert, Policy, etc.) */
     @PostMapping("/api/internal/events/audit")
     void logAudit(@RequestBody AuditEventDTO event);
+
+    /** Fire when an adjuster verifies evidence — sends notification to the policyholder */
+    @PostMapping("/api/internal/events/evidence-verified")
+    void onEvidenceVerified(@RequestBody AuditEventDTO event);
 }

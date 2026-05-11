@@ -1,7 +1,9 @@
 package com.cts.identity.service;
 
+import com.cts.identity.entity.Claimant;
 import com.cts.identity.entity.RoleSequence;
 import com.cts.identity.entity.User;
+import com.cts.identity.repository.ClaimantRepository;
 import com.cts.identity.repository.RoleSequenceRepository;
 import com.cts.identity.repository.UserRepository;
 import com.cts.identity.util.Role;
@@ -20,14 +22,28 @@ public class AuthService {
     private RoleSequenceRepository roleSequenceRepository;
 
     @Autowired
+    private ClaimantRepository claimantRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Transactional
     public User save(User user) {
-        // holderId is a plain Long column — no FK resolution needed; policy-service owns PolicyHolder
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         user.setUserId(generateUserId(user.getRole()));
         return userRepository.save(user);
+    }
+
+    @Transactional
+    public User saveWithClaimant(User user, String name) {
+        User saved = save(user);
+        Claimant claimant = new Claimant();
+        claimant.setUserId(saved.getUserId());
+        claimant.setName(name);
+        claimant.setEmail(saved.getEmail());
+        claimant.setPhone(saved.getPhone());
+        claimantRepository.save(claimant);
+        return saved;
     }
 
     private String generateUserId(Role role) {

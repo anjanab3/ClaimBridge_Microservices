@@ -49,9 +49,30 @@ public class InvestigationService {
         Investigation inv = investigationRepo.findById(investigationId)
                 .orElseThrow(() -> new RuntimeException("Investigation not found"));
 
-        // If already closed — don't process again
+        // If already closed — ensure settlement was still created (catches cases where
+        // the investigation was closed without going through the settlement flow)
         if (inv.getStatus() == InvestigationStatus.CLOSED) {
-            return mapToDTO(inv, null);
+            Claim closedClaim = claimRepo.findById(inv.getClaim().getClaimId())
+                    .orElseThrow(() -> new RuntimeException("Claim not found"));
+            List<Settlement> existingList = settlementRepo.findByClaim_ClaimId(closedClaim.getClaimId());
+            if (!existingList.isEmpty()) {
+                // Settlement exists in claims DB — push to payment-service in case it never arrived
+                Settlement existing = existingList.get(0);
+                sendSettlementToPayment(existing);
+                return mapToDTO(inv, existing);
+            }
+            // No settlement at all — create and send
+            String recommendedBy = SecurityContextHolder.getContext()
+                    .getAuthentication().getName();
+            Settlement s = new Settlement();
+            s.setClaim(closedClaim);
+            s.setRecommendedAmount(dto.getRecommendedAmount());
+            s.setRecommendedBy(recommendedBy);
+            s.setRecommendedAt(LocalDateTime.now());
+            s.setStatus(Status.IN_REVIEW);
+            Settlement saved = settlementRepo.save(s);
+            sendSettlementToPayment(saved);
+            return mapToDTO(inv, saved);
         }
 
         inv.setStatus(InvestigationStatus.valueOf(dto.getStatus()));
@@ -68,9 +89,12 @@ public class InvestigationService {
             String recommendedBy = SecurityContextHolder.getContext()
                     .getAuthentication().getName();
 
-            // Prevent duplicate settlements
-            boolean exists = settlementRepo.existsByClaim_ClaimId(claim.getClaimId());
-            if (!exists) {
+            List<Settlement> existing = settlementRepo.findByClaim_ClaimId(claim.getClaimId());
+            if (!existing.isEmpty()) {
+                // Settlement already in claims DB — push to payment-service in case it missed it
+                settlement = existing.get(0);
+                sendSettlementToPayment(settlement);
+            } else {
                 settlement = new Settlement();
                 settlement.setClaim(claim);
                 settlement.setRecommendedAmount(dto.getRecommendedAmount());

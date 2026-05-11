@@ -1,7 +1,10 @@
 package com.cts.claimbridge.service;
 
 import com.cts.claimbridge.client.PolicyServiceClient;
+import com.cts.claimbridge.client.ReportingServiceClient;
+import com.cts.claimbridge.dto.AuditEventDTO;
 import com.cts.claimbridge.dto.EvidenceDTO;
+import com.cts.claimbridge.dto.PolicyDTO;
 import com.cts.claimbridge.dto.PolicyHolderDTO;
 import com.cts.claimbridge.dto.VerifyevidenceRequestDTO;
 import com.cts.claimbridge.entity.Claim;
@@ -30,6 +33,8 @@ public class EvidenceService {
     private ClaimRepository claimRepository;
     @Autowired
     private PolicyServiceClient policyServiceClient;
+    @Autowired
+    private ReportingServiceClient reportingServiceClient;
 
     @Value("${file.upload-dir}")
     private String uploadDir;
@@ -78,7 +83,27 @@ public class EvidenceService {
         Evidence evidence = evidenceRepository.findById(evidenceId)
                 .orElseThrow(() -> new RuntimeException("Evidence not found"));
         evidence.setVerified(dto.getIsVerified());
-        return mapToDTO(evidenceRepository.save(evidence));
+        EvidenceDTO result = mapToDTO(evidenceRepository.save(evidence));
+
+        if (Boolean.TRUE.equals(dto.getIsVerified())) {
+            try {
+                Claim claim = evidence.getClaim();
+                if (claim != null && claim.getPolicyId() != null) {
+                    PolicyDTO policy = policyServiceClient.getPolicyById(claim.getPolicyId());
+                    if (policy != null && policy.getHolderId() != null) {
+                        AuditEventDTO event = new AuditEventDTO();
+                        event.setUserId(policy.getHolderId());
+                        event.setResource("Evidence");
+                        event.setResourceId(evidenceId);
+                        event.setAction("VERIFIED");
+                        event.setDetails("Evidence for your Claim #" + claim.getClaimId() + " has been verified by an adjuster.");
+                        reportingServiceClient.onEvidenceVerified(event);
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+
+        return result;
     }
 
     private PolicyHolderDTO fetchHolder(long holderId) {

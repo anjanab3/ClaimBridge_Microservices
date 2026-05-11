@@ -17,7 +17,6 @@ public class ClaimBridgeLauncher {
 
     private static final List<Process> runningProcesses = new ArrayList<>();
 
-    // healthPath: URL path to GET for HTTP readiness check (null = TCP-only)
     record ServiceConfig(String name, String relativeJarPath, int port, int maxWaitSeconds, String healthPath) {}
 
     public static void main(String[] args) throws Exception {
@@ -224,9 +223,14 @@ public class ClaimBridgeLauncher {
 
     private static String resolveProjectRoot() {
         try {
-            String jarLocation = ClaimBridgeLauncher.class.getProtectionDomain()
-                    .getCodeSource().getLocation().toURI().getPath();
-            Path jarPath = Paths.get(jarLocation).toAbsolutePath();
+            // Use Paths.get(URI) directly — avoids the leading-slash bug on Windows
+            // where toURI().getPath() returns "/C:/..." which Paths.get(String) misreads
+            Path jarPath = Paths.get(
+                    ClaimBridgeLauncher.class.getProtectionDomain()
+                            .getCodeSource().getLocation().toURI()
+            ).toAbsolutePath();
+            // jar is at: <root>/launcher/target/claimbridge-launcher.jar
+            // go up 3 levels → project root
             return jarPath.getParent().getParent().getParent().toString();
         } catch (Exception e) {
             return System.getProperty("user.dir");

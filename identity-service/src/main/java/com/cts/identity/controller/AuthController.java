@@ -70,7 +70,11 @@ public class AuthController {
             if (req.getHolderId() != null) {
                 user.setHolderId(req.getHolderId());
             }
-            return ResponseEntity.ok(new MessageDTO(authService.save(user), "User created successfully"));
+            // If name is provided this is a claimant registration — save to both users and claimants tables
+            User saved = (req.getName() != null && !req.getName().isBlank())
+                    ? authService.saveWithClaimant(user, req.getName())
+                    : authService.save(user);
+            return ResponseEntity.ok(new MessageDTO(saved, "User created successfully"));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(new ResponseDTO(e.getMessage()));
         }
