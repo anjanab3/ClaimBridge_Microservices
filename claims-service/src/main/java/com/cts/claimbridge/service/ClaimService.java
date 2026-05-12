@@ -1,5 +1,6 @@
 package com.cts.claimbridge.service;
 
+import com.cts.claimbridge.client.IdentityServiceClient;
 import com.cts.claimbridge.client.PolicyServiceClient;
 import com.cts.claimbridge.dto.ClaimStatusDTO;
 import com.cts.claimbridge.dto.PolicyDTO;
@@ -35,6 +36,8 @@ public class ClaimService {
     private FraudScoringService fraudScoringService;
     @Autowired
     private PolicyServiceClient policyServiceClient;
+    @Autowired
+    private IdentityServiceClient identityServiceClient;
 
     public Claim save(Claim claim, long policyId, long holderId) {
         log.info("Saving new claim for policyId={} holderId={}", policyId, holderId);
@@ -61,12 +64,27 @@ public class ClaimService {
 
         fraudScoringService.scoreAndPersist(savedClaim);
 
+        // Notify the policyholder
         notificationService.sendNotification(
                 holderId,
                 savedClaim.getClaimId(),
                 "Your claim has been successfully submitted",
-                "Intake"
+                "INTAKE"
         );
+
+        // Notify all claims intake agents
+        try {
+            identityServiceClient.getUsersByRole("CLAIMS_INTAKE_AGENT").forEach(agent ->
+                notificationService.sendStaffNotification(
+                        agent.getUserId(),
+                        savedClaim.getClaimId(),
+                        "New claim #" + savedClaim.getClaimId() + " has been submitted and is awaiting intake review.",
+                        "INTAKE"
+                )
+            );
+        } catch (Exception e) {
+            log.warn("Could not notify intake agents for claimId={}: {}", savedClaim.getClaimId(), e.getMessage());
+        }
 
         return savedClaim;
     }

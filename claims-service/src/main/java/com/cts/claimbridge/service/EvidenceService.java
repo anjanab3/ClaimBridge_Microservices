@@ -104,6 +104,14 @@ public class EvidenceService {
                         event.setAction("VERIFIED");
                         event.setDetails("Evidence for your Claim #" + claim.getClaimId() + " has been verified by an adjuster.");
                         reportingServiceClient.onEvidenceVerified(event);
+
+                        // Notify the policyholder
+                        notificationService.sendNotification(
+                                policy.getHolderId(),
+                                claim.getClaimId(),
+                                "Your evidence for Claim #" + claim.getClaimId() + " has been verified by our team.",
+                                "EVIDENCE"
+                        );
                     }
                 }
 

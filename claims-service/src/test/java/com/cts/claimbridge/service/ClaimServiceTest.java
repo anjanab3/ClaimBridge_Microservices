@@ -101,7 +101,6 @@ class ClaimServiceTest {
     void updateClaimStatus_ShouldUpdateAndSave() {
         when(claimRepository.findById(1L)).thenReturn(Optional.of(claim));
         when(claimRepository.save(any(Claim.class))).thenReturn(claim);
-        when(policyServiceClient.getPolicyById(any())).thenReturn(policy);
 
         Claim result = claimService.updateClaimStatus(1L, ClaimStatus.IN_REVIEW);
 

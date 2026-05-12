@@ -33,10 +33,9 @@ public class InteractionService {
 
         // Find triage decision for that claim
         List<TriageDecision> decision = triageRepo.findByClaim_ClaimId(claim.getClaimId());
-        if(decision==null){
-            throw new RuntimeException("Triage decision not found");
-        }
-        String adjusterId = decision.get(0).getAssignedTo();
+        String adjusterId = (decision != null && !decision.isEmpty())
+                ? decision.get(0).getAssignedTo()
+                : null;
         InvestigationNote note = new InvestigationNote();
         note.setAuthorId(adjusterId);
         note.setNoteText(dto.getNoteText());

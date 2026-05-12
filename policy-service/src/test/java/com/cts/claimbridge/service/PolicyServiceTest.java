@@ -119,7 +119,7 @@ class PolicyServiceTest {
         when(policyRepo.findById(1L)).thenReturn(Optional.of(policy));
         when(policyRepo.save(any(Policy.class))).thenReturn(policy);
 
-        Policy result = policyService.updateStatus(1L, "INACTIVE");
+        Policy result = policyService.updateStatus(1L, "SUSPENDED");
 
         assertNotNull(result);
         verify(policyRepo).save(policy);

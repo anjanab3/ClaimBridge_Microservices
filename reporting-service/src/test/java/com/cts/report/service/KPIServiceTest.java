@@ -86,6 +86,7 @@ class KPIServiceTest {
     @Test
     void updateTarget_ShouldUpdateAndSave_WhenKPIExists() {
         when(kpiRepository.findById(1L)).thenReturn(Optional.of(kpi));
+        when(kpiRepository.save(any(KPI.class))).thenReturn(kpi);
 
         kpiService.updateTarget(1L, BigDecimal.valueOf(100));
 
