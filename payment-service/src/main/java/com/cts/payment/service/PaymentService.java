@@ -1,20 +1,25 @@
 package com.cts.payment.service;
 
 import com.cts.payment.client.ClaimsServiceClient;
+import com.cts.payment.client.ReportingServiceClient;
+import com.cts.payment.dto.AuditEventDTO;
 import com.cts.payment.entity.Payment;
 import com.cts.payment.repository.PaymentRepository;
 import com.cts.payment.repository.SettlementRepository;
 import com.cts.payment.util.PaymentStatus;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.Optional;
 
+@Slf4j
 @Service
 public class PaymentService {
 
@@ -24,6 +29,8 @@ public class PaymentService {
     private SettlementRepository settlementRepository;
     @Autowired
     private ClaimsServiceClient claimsServiceClient;
+    @Autowired
+    private ReportingServiceClient reportingServiceClient;
 
     public Payment initiatePayment(Long settlementId, Payment payment) {
         if (paymentRepository.existsBySettlementId(settlementId)) {
@@ -40,7 +47,15 @@ public class PaymentService {
         payment.setSettlementId(settlementId);
         payment.setClaimId(claimId);
         payment.setStatus(PaymentStatus.INITIATED);
-        return paymentRepository.save(payment);
+        Payment saved = paymentRepository.save(payment);
+
+        // Move claim to PAYMENT_SCHEDULED stage (step 3) and notify the holder
+        notifyClaimStatusUpdate(claimId, "PAYMENT_SCHEDULED");
+
+        logAudit("Payment", saved.getPaymentId(), "PAYMENT_SCHEDULED",
+                "Payment #" + saved.getPaymentId() + " scheduled for Claim #" + claimId
+                        + " (Settlement #" + settlementId + ") by " + getActor());
+        return saved;
     }
 
     public Optional<Payment> getPaymentBySettlement(Long settlementId) {
@@ -57,7 +72,11 @@ public class PaymentService {
                 .map(payment -> {
                     payment.setStatus(PaymentStatus.SETTLED);
                     payment.setPaidDate(LocalDate.now());
-                    return paymentRepository.save(payment);
+                    Payment settled = paymentRepository.save(payment);
+                    logAudit("Payment", settled.getPaymentId(), "PAYMENT_ISSUED",
+                            "Payment #" + settled.getPaymentId() + " issued for Claim #"
+                                    + settled.getClaimId() + " by " + getActor());
+                    return settled;
                 });
     }
 
@@ -76,6 +95,27 @@ public class PaymentService {
         } catch (Exception e) {
             System.err.println("Warning: could not update claim status for claimId="
                     + claimId + ": " + e.getMessage());
+        }
+    }
+
+    private void logAudit(String resource, Long resourceId, String action, String details) {
+        try {
+            AuditEventDTO event = new AuditEventDTO();
+            event.setResource(resource);
+            event.setResourceId(resourceId);
+            event.setAction(action);
+            event.setDetails(details);
+            reportingServiceClient.logAudit(event);
+        } catch (Exception e) {
+            log.warn("Could not write audit log for action={}: {}", action, e.getMessage());
+        }
+    }
+
+    private String getActor() {
+        try {
+            return SecurityContextHolder.getContext().getAuthentication().getName();
+        } catch (Exception e) {
+            return "system";
         }
     }
 }

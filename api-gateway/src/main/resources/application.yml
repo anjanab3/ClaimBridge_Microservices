@@ -8,98 +8,89 @@ spring:
       default-filters:
         - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials
 
-      globalcors:
-        corsConfigurations:
-          '[/**]':
-            allowedOrigins: "http://localhost:5173"
-            allowedMethods:
-              - GET
-              - POST
-              - PUT
-              - DELETE
-              - PATCH
-              - OPTIONS
-            allowedHeaders: "*"
-            allowCredentials: true
-
       routes:
         # ── Identity Service (port 9093) ────────────────────────────────────────
         - id: identity-service
-          uri: lb://identity-service
+          uri: http://localhost:9093
           predicates:
             - Path=/api/identity/**
 
         # ── Claims Service (port 9092) ───────────────────────────────────────────
         - id: claims-service-claims
-          uri: lb://claims
+          uri: http://localhost:9092
           predicates:
             - Path=/api/claims/**
 
         - id: claims-service-adjuster
-          uri: lb://claims
+          uri: http://localhost:9092
           predicates:
             - Path=/api/adjuster/**
 
         - id: claims-service-fraud
-          uri: lb://claims
+          uri: http://localhost:9092
           predicates:
             - Path=/api/fraud/**
 
         - id: claims-service-investigations
-          uri: lb://claims
+          uri: http://localhost:9092
           predicates:
             - Path=/api/investigations/**
 
         - id: claims-service-triage
-          uri: lb://claims
+          uri: http://localhost:9092
           predicates:
             - Path=/api/triage/**
 
         - id: claims-service-notifications
-          uri: lb://claims
+          uri: http://localhost:9092
           predicates:
             - Path=/api/notifications/**
 
         # ── Policy Service (port 9091) ───────────────────────────────────────────
         - id: policy-service-policies
-          uri: lb://policy
+          uri: http://localhost:9091
           predicates:
             - Path=/api/policies/**
 
         - id: policy-service-holders
-          uri: lb://policy
+          uri: http://localhost:9091
           predicates:
             - Path=/api/policyholders/**
 
+        - id: policy-service-import
+          uri: http://localhost:9091
+          predicates:
+            - Path=/api/admin/import/**
+
         # ── Payment Service (port 9094) ──────────────────────────────────────────
         - id: payment-service-payments
-          uri: lb://payment-service
+          uri: http://localhost:9094
           predicates:
             - Path=/api/payments/**
 
         - id: payment-service-settlement
-          uri: lb://payment-service
+          uri: http://localhost:9094
           predicates:
             - Path=/api/settlement/**
 
         # ── Reporting Service (port 9095) ────────────────────────────────────────
         - id: reporting-service-reporting
-          uri: lb://reporting-service
+          uri: http://localhost:9095
           predicates:
             - Path=/api/reporting/**
 
         - id: reporting-service-underwriter
-          uri: lb://reporting-service
+          uri: http://localhost:9095
           predicates:
             - Path=/api/underwriter/**
 
         - id: reporting-service-sla
-          uri: lb://reporting-service
+          uri: http://localhost:9095
           predicates:
             - Path=/api/sla/**
 
 server:
-  port: 8080
+  port: 8085
 
 eureka:
   client:
@@ -116,6 +107,9 @@ management:
     web:
       exposure:
         include: health, info
+  health:
+    eureka:
+      enabled: false   # Eureka registration is async; don't let it mark gateway as DOWN
 
 logging:
   level:

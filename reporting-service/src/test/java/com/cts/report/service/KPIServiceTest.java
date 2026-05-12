@@ -29,7 +29,7 @@ class KPIServiceTest {
     @BeforeEach
     void setUp() {
         kpi = new KPI();
-        kpi.setId(1L);
+        kpi.setKpiId(1L);
         kpi.setName("CLAIM_BACKLOG");
         kpi.setCurrentValue(BigDecimal.valueOf(10));
         kpi.setTarget(BigDecimal.valueOf(50));
@@ -66,7 +66,7 @@ class KPIServiceTest {
 
     @Test
     void incrementKpi_ShouldAddOne_WhenKPIExists() {
-        when(kpiRepository.findByName("CLAIM_BACKLOG")).thenReturn(Optional.of(kpi));
+        when(kpiRepository.findByNameIgnoreCase("CLAIM_BACKLOG")).thenReturn(Optional.of(kpi));
 
         kpiService.incrementKpi("CLAIM_BACKLOG");
 
@@ -76,7 +76,7 @@ class KPIServiceTest {
 
     @Test
     void incrementKpi_ShouldDoNothing_WhenKPINotFound() {
-        when(kpiRepository.findByName("UNKNOWN_KPI")).thenReturn(Optional.empty());
+        when(kpiRepository.findByNameIgnoreCase("UNKNOWN_KPI")).thenReturn(Optional.empty());
 
         // Should not throw
         assertDoesNotThrow(() -> kpiService.incrementKpi("UNKNOWN_KPI"));

@@ -12,6 +12,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class ClaimBridgeLauncher {
 
@@ -28,7 +31,7 @@ public class ClaimBridgeLauncher {
 
         List<ServiceConfig> services = List.of(
             new ServiceConfig("eureka-server",    "eureka-server/target/eureka-server-0.0.1-SNAPSHOT.jar",          8761, 60,  "/"),
-            new ServiceConfig("api-gateway",      "api-gateway/target/api-gateway-0.0.1-SNAPSHOT.jar",              8080, 90,  "/actuator/health"),
+            new ServiceConfig("api-gateway",      "api-gateway/target/api-gateway-0.0.1-SNAPSHOT.jar",              8085, 90,  "/actuator/health"),
             new ServiceConfig("policy-service",   "policy-service/target/claimbridge_policy-0.0.1-SNAPSHOT.jar",    9091, 90,  "/v3/api-docs"),
             new ServiceConfig("claims-service",   "claims-service/target/claimbridge_claims-0.0.1-SNAPSHOT.jar",    9092, 90,  "/v3/api-docs"),
             new ServiceConfig("identity-service", "identity-service/target/identity-service-0.0.1-SNAPSHOT.jar",   9093, 90,  "/v3/api-docs"),
@@ -59,16 +62,32 @@ public class ClaimBridgeLauncher {
             System.out.println("All services stopped.");
         }));
 
-        // Start each service sequentially, waiting for HTTP readiness before the next
         Map<String, String> startupStatus = new LinkedHashMap<>();
-        for (ServiceConfig svc : services) {
-            String status = startService(svc, projectRoot);
-            startupStatus.put(svc.name(), status);
+
+        // Step 1 — Eureka must be up before anything else registers
+        ServiceConfig eureka = services.get(0);
+        System.out.println("[eureka-server] Starting first (all other services depend on it)...");
+        startupStatus.put(eureka.name(), startService(eureka, projectRoot));
+
+        // Step 2 — Start all remaining services in parallel
+        List<ServiceConfig> remaining = services.subList(1, services.size());
+        System.out.println("\nStarting remaining " + remaining.size() + " services in parallel...\n");
+
+        ExecutorService executor = Executors.newFixedThreadPool(remaining.size());
+        Map<String, Future<String>> futures = new LinkedHashMap<>();
+        for (ServiceConfig svc : remaining) {
+            futures.put(svc.name(), executor.submit(() -> startService(svc, projectRoot)));
         }
 
-        // Wait a moment for Eureka registrations to propagate
-        System.out.println("\nWaiting 5s for Eureka registrations to propagate...");
-        Thread.sleep(5000);
+        // Collect results (blocks until every service reports ready or timeout)
+        for (Map.Entry<String, Future<String>> entry : futures.entrySet()) {
+            startupStatus.put(entry.getKey(), entry.getValue().get());
+        }
+        executor.shutdown();
+
+        // Brief pause for Eureka registrations to propagate
+        System.out.println("\nWaiting 3s for Eureka registrations to propagate...");
+        Thread.sleep(3000);
 
         // Print startup summary
         printStartupSummary(startupStatus);
@@ -200,7 +219,7 @@ public class ClaimBridgeLauncher {
 
         Map<String, Integer> ports = Map.of(
             "eureka-server",    8761,
-            "api-gateway",      8080,
+            "api-gateway",      8085,
             "policy-service",   9091,
             "claims-service",   9092,
             "identity-service", 9093,

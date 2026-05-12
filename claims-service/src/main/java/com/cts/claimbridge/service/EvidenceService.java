@@ -11,6 +11,8 @@ import com.cts.claimbridge.entity.Claim;
 import com.cts.claimbridge.entity.Evidence;
 import com.cts.claimbridge.repository.ClaimRepository;
 import com.cts.claimbridge.repository.EvidenceRepository;
+import com.cts.claimbridge.repository.TriageDecisionRepository;
+import com.cts.claimbridge.entity.TriageDecision;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -35,6 +37,10 @@ public class EvidenceService {
     private PolicyServiceClient policyServiceClient;
     @Autowired
     private ReportingServiceClient reportingServiceClient;
+    @Autowired
+    private NotificationService notificationService;
+    @Autowired
+    private TriageDecisionRepository triageDecisionRepository;
 
     @Value("${file.upload-dir}")
     private String uploadDir;
@@ -100,6 +106,20 @@ public class EvidenceService {
                         reportingServiceClient.onEvidenceVerified(event);
                     }
                 }
+
+                // Notify the assigned adjuster / fraud analyst
+                triageDecisionRepository
+                        .findTopByClaimIdOrderByAssignedAtDesc(claim.getClaimId())
+                        .ifPresent(decision -> {
+                            if (decision.getAssignedTo() != null) {
+                                notificationService.sendStaffNotification(
+                                        decision.getAssignedTo(),
+                                        claim.getClaimId(),
+                                        "Evidence for Claim #" + claim.getClaimId()
+                                                + " has been verified. Please continue your investigation.",
+                                        "INVESTIGATION");
+                            }
+                        });
             } catch (Exception ignored) {}
         }
 

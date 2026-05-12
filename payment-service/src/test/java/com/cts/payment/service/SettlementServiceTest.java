@@ -12,7 +12,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -37,12 +36,12 @@ class SettlementServiceTest {
         settlement = new Settlement();
         settlement.setSettlementId(1L);
         settlement.setClaimId(100L);
-        settlement.setRecommendedAmount(BigDecimal.valueOf(5000));
+        settlement.setRecommendedAmount(5000.0);
         settlement.setStatus(SettlementStatus.PENDING);
 
         dto = new SettlementSyncDTO();
         dto.setClaimId(100L);
-        dto.setRecommendedAmount(BigDecimal.valueOf(5000));
+        dto.setRecommendedAmount(5000.0);
         dto.setRecommendedBy("adjuster-001");
         dto.setRecommendedAt(LocalDateTime.now());
     }

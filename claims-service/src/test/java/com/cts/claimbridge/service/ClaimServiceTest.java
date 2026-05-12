@@ -122,7 +122,7 @@ class ClaimServiceTest {
         when(claimRepository.findById(1L)).thenReturn(Optional.of(claim));
         when(claimRepository.save(any(Claim.class))).thenReturn(claim);
 
-        Claim result = claimService.validateClaim(1L, ClaimStatus.VALID);
+        Claim result = claimService.validateClaim(1L, ClaimStatus.IN_REVIEW);
 
         assertNotNull(result);
         verify(claimRepository).save(claim);

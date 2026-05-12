@@ -18,12 +18,14 @@ C:\ClaimBridge_Microservices\identity-service\src\main\java\com\cts\identity\dto
 C:\ClaimBridge_Microservices\identity-service\src\main\java\com\cts\identity\dto\TriageRuleResponseDTO.java
 C:\ClaimBridge_Microservices\identity-service\src\main\java\com\cts\identity\dto\UpdateProfileDTO.java
 C:\ClaimBridge_Microservices\identity-service\src\main\java\com\cts\identity\dto\UserDTO.java
+C:\ClaimBridge_Microservices\identity-service\src\main\java\com\cts\identity\entity\Claimant.java
 C:\ClaimBridge_Microservices\identity-service\src\main\java\com\cts\identity\entity\RoleSequence.java
 C:\ClaimBridge_Microservices\identity-service\src\main\java\com\cts\identity\entity\TriageDecision.java
 C:\ClaimBridge_Microservices\identity-service\src\main\java\com\cts\identity\entity\TriageRule.java
 C:\ClaimBridge_Microservices\identity-service\src\main\java\com\cts\identity\entity\User.java
 C:\ClaimBridge_Microservices\identity-service\src\main\java\com\cts\identity\IdentityServiceApplication.java
 C:\ClaimBridge_Microservices\identity-service\src\main\java\com\cts\identity\initializer\AdminInitializer.java
+C:\ClaimBridge_Microservices\identity-service\src\main\java\com\cts\identity\repository\ClaimantRepository.java
 C:\ClaimBridge_Microservices\identity-service\src\main\java\com\cts\identity\repository\RoleSequenceRepository.java
 C:\ClaimBridge_Microservices\identity-service\src\main\java\com\cts\identity\repository\TriageDecisionRepository.java
 C:\ClaimBridge_Microservices\identity-service\src\main\java\com\cts\identity\repository\TriageRuleRepository.java

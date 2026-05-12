@@ -10,6 +10,7 @@ import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
@@ -18,16 +19,10 @@ import reactor.core.publisher.Mono;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-/**
- * Validates the JWT on every inbound request before routing to downstream services.
- * Public paths (login, public registration, internal service-to-service calls) bypass validation.
- * On success, X-User-Id / X-User-Role / X-Username headers are injected for downstream use.
- */
 @Slf4j
 @Component
 public class JwtAuthFilter implements GlobalFilter, Ordered {
 
-    // Paths that do not require a valid JWT
     private static final List<String> PUBLIC_PATHS = List.of(
         "/api/identity/auth/login",
         "/api/identity/auth/register/public",
@@ -42,6 +37,20 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        // Always add CORS headers to every response
+        HttpHeaders responseHeaders = exchange.getResponse().getHeaders();
+        responseHeaders.set("Access-Control-Allow-Origin", "http://localhost:5173");
+        responseHeaders.set("Access-Control-Allow-Credentials", "true");
+        responseHeaders.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+        responseHeaders.set("Access-Control-Allow-Headers", "*");
+        responseHeaders.set("Access-Control-Max-Age", "3600");
+
+        // Short-circuit OPTIONS preflight — no JWT needed, just return 200
+        if (exchange.getRequest().getMethod() == HttpMethod.OPTIONS) {
+            exchange.getResponse().setStatusCode(HttpStatus.OK);
+            return exchange.getResponse().setComplete();
+        }
+
         String path = exchange.getRequest().getURI().getPath();
 
         if (isPublic(path)) {

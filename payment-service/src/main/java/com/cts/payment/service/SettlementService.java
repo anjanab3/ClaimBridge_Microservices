@@ -1,12 +1,15 @@
 package com.cts.payment.service;
 
 import com.cts.payment.client.ClaimsServiceClient;
+import com.cts.payment.client.ReportingServiceClient;
+import com.cts.payment.dto.AuditEventDTO;
 import com.cts.payment.dto.SettlementSyncDTO;
 import com.cts.payment.entity.Settlement;
 import com.cts.payment.repository.SettlementRepository;
 import com.cts.payment.util.SettlementStatus;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -21,6 +24,8 @@ public class SettlementService {
 
     @Autowired
     private ClaimsServiceClient claimsServiceClient;
+    @Autowired
+    private ReportingServiceClient reportingServiceClient;
 
     // Get all settlements — payout officer overview
     public List<Settlement> getAllSettlements() {
@@ -39,16 +44,47 @@ public class SettlementService {
                 .orElseThrow(() -> new RuntimeException(
                         "No settlement found for settlementId: " + settlementId));
 
+        String actor = getActor();
+
         if ("APPROVED".equalsIgnoreCase(newStatus)) {
             settlement.setStatus(SettlementStatus.APPROVED);
             settlementRepository.save(settlement);
-            log.info("Settlement {} approved", settlementId);
+            log.info("Settlement {} approved by {}", settlementId, actor);
+            logAudit("Settlement", settlementId, "SETTLEMENT_APPROVED",
+                    "Settlement #" + settlementId + " for Claim #" + settlement.getClaimId()
+                            + " approved by " + actor);
         } else if ("REJECTED".equalsIgnoreCase(newStatus)) {
             settlement.setStatus(SettlementStatus.REJECTED);
             settlementRepository.save(settlement);
-            log.info("Settlement {} rejected", settlementId);
+            log.info("Settlement {} rejected by {}", settlementId, actor);
+            logAudit("Settlement", settlementId, "SETTLEMENT_REJECTED",
+                    "Settlement #" + settlementId + " for Claim #" + settlement.getClaimId()
+                            + " rejected by " + actor);
         } else {
             log.warn("Unknown status '{}' for settlementId={}", newStatus, settlementId);
+        }
+    }
+
+    // ── helpers ───────────────────────────────────────────────────────────────
+
+    private void logAudit(String resource, Long resourceId, String action, String details) {
+        try {
+            AuditEventDTO event = new AuditEventDTO();
+            event.setResource(resource);
+            event.setResourceId(resourceId);
+            event.setAction(action);
+            event.setDetails(details);
+            reportingServiceClient.logAudit(event);
+        } catch (Exception e) {
+            log.warn("Could not write audit log for action={}: {}", action, e.getMessage());
+        }
+    }
+
+    private String getActor() {
+        try {
+            return SecurityContextHolder.getContext().getAuthentication().getName();
+        } catch (Exception e) {
+            return "system";
         }
     }
 

@@ -1,5 +1,6 @@
 package com.cts.claimbridge.service;
 
+import com.cts.claimbridge.client.IdentityServiceClient;
 import com.cts.claimbridge.client.PaymentServiceClient;
 import com.cts.claimbridge.dto.*;
 import com.cts.claimbridge.entity.*;
@@ -30,6 +31,10 @@ public class InvestigationService {
     private SettlementRepository settlementRepo;
     @Autowired
     private PaymentServiceClient paymentServiceClient;
+    @Autowired
+    private NotificationService notificationService;
+    @Autowired
+    private IdentityServiceClient identityServiceClient;
 
     public InvestigationFullResponseDTO getInvestigationByClaimId(Long claimId) {
         claimRepo.findById(claimId)
@@ -129,9 +134,30 @@ public class InvestigationService {
             paymentServiceClient.sendSettlementToPayment(dto);
             System.out.println("Settlement sent to payment-service for claimId="
                     + dto.getClaimId());
+
+            // Notify all payout officers that a new settlement is ready for review
+            notifyPayoutOfficers(settlement.getClaim().getClaimId(),
+                    settlement.getRecommendedAmount());
         } catch (Exception e) {
             System.err.println("Warning: could not send settlement to payment-service: "
                     + e.getMessage());
+        }
+    }
+
+    private void notifyPayoutOfficers(Long claimId, Double amount) {
+        try {
+            String amountStr = amount != null ? String.format("$%.2f", amount) : "N/A";
+            List<UserDTO> payoutOfficers = identityServiceClient.getUsersByRole("PAYOUT_OFFICER");
+            for (UserDTO officer : payoutOfficers) {
+                notificationService.sendStaffNotification(
+                        officer.getUserId(),
+                        claimId,
+                        "Settlement for Claim #" + claimId
+                                + " is ready for your review. Recommended amount: " + amountStr,
+                        "PAYMENT");
+            }
+        } catch (Exception e) {
+            System.err.println("Warning: could not notify payout officers: " + e.getMessage());
         }
     }
 
