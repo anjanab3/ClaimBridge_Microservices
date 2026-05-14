@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
-@FeignClient(name = "identity-service", url = "${identity.service.url:http://localhost:9093}")
+@FeignClient(name = "identity-service")
 public interface IdentityServiceClient {
 
     // ── Triage rules ──────────────────────────────────────────────────────────

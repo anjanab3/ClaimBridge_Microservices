@@ -18,6 +18,16 @@ public class InvestigationController {
     @Autowired
     private InvestigationService service;
 
+    @Transactional
+    @PostMapping("/claims/{claimId}/investigation")
+    public ResponseEntity<?> createInvestigationForClaim(@PathVariable("claimId") Long claimId) {
+        try {
+            return ResponseEntity.ok(service.createInvestigationForClaim(claimId));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
     @GetMapping("/claims/{claimId}/investigation")
     public ResponseEntity<?> getInvestigationByClaimId(@PathVariable("claimId") Long claimId) {
         try {

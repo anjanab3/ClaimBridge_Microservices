@@ -3,8 +3,11 @@ package com.cts.claimbridge.controller;
 import static java.lang.Math.log;
 
 import com.cts.claimbridge.dto.ClaimFullResponseDTO;
+import com.cts.claimbridge.dto.MessageDTO;
 import com.cts.claimbridge.dto.ResponseDTO;
 import com.cts.claimbridge.service.AdjusterService;
+import com.cts.claimbridge.service.ClaimService;
+import com.cts.claimbridge.util.ClaimStatus;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -23,6 +26,9 @@ public class AdjusterController {
 
     @Autowired
     private AdjusterService adjusterService;
+
+    @Autowired
+    private ClaimService claimService;
 
     @GetMapping("/claims/{adjusterId}")
     public ResponseEntity<?> getAssignedClaims(
@@ -56,5 +62,15 @@ public class AdjusterController {
         }
         log.info("Successfully retrieved claimId: {} for adjusterId: {}", claimId, adjusterId);
         return ResponseEntity.ok().body(result);
+    }
+
+    @PutMapping("/claims/{claimId}/reject")
+    public ResponseEntity<?> rejectClaim(@PathVariable Long claimId) {
+        try {
+            claimService.updateClaimStatus(claimId, ClaimStatus.REJECTED);
+            return ResponseEntity.ok().body(new MessageDTO(null, "Claim rejected successfully"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(new ResponseDTO(e.getMessage()));
+        }
     }
 }

@@ -36,6 +36,24 @@ public class InvestigationService {
     @Autowired
     private IdentityServiceClient identityServiceClient;
 
+    @Transactional
+    public InvestigationFullResponseDTO createInvestigationForClaim(Long claimId) {
+        Claim claim = claimRepo.findById(claimId)
+                .orElseThrow(() -> new RuntimeException("Claim not found"));
+        Investigation inv = investigationRepo.findByClaim_ClaimId(claimId)
+                .orElseGet(() -> {
+                    Investigation newInv = new Investigation();
+                    newInv.setClaim(claim);
+                    newInv.setStatus(InvestigationStatus.OPEN);
+                    newInv.setOpenedAt(LocalDateTime.now());
+                    return investigationRepo.save(newInv);
+                });
+        List<InvestigationNote> notes =
+                noteRepo.findByInvestigation_InvestigationIdOrderByCreatedAtAsc(
+                        inv.getInvestigationId());
+        return mapToFullDTO(inv, notes);
+    }
+
     public InvestigationFullResponseDTO getInvestigationByClaimId(Long claimId) {
         claimRepo.findById(claimId)
                 .orElseThrow(() -> new RuntimeException("Claim not found"));
