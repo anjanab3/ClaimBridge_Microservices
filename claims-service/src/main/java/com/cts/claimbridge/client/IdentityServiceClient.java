@@ -2,6 +2,7 @@ package com.cts.claimbridge.client;
 
 import com.cts.claimbridge.dto.TriageRuleDTO;
 import com.cts.claimbridge.dto.UserDTO;
+import com.cts.claimbridge.client.fallback.IdentityServiceClientFallback;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -9,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
-@FeignClient(name = "identity-service")
+@FeignClient(name = "identity-service", fallback = IdentityServiceClientFallback.class)
 public interface IdentityServiceClient {
 
     // ── Triage rules ──────────────────────────────────────────────────────────

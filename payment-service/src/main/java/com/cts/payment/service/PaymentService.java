@@ -33,9 +33,30 @@ public class PaymentService {
     private ReportingServiceClient reportingServiceClient;
 
     public Payment initiatePayment(Long settlementId, Payment payment) {
-        if (paymentRepository.existsBySettlementId(settlementId)) {
-            throw new IllegalStateException("Payment for settlement ID "
-                    + settlementId + " has already been initiated.");
+        // Validate scheduled date — must not be null or in the past
+        if (payment.getScheduledDate() == null) {
+            throw new IllegalArgumentException("Scheduled date is required.");
+        }
+        if (!payment.getScheduledDate().isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException(
+                    "Scheduled date must be a future date. Please select tomorrow or later.");
+        }
+
+        // If a payment is already INITIATED, allow rescheduling by updating the date
+        Optional<Payment> existing = paymentRepository.findBySettlementId(settlementId);
+        if (existing.isPresent()) {
+            Payment existingPayment = existing.get();
+            if (existingPayment.getStatus() != PaymentStatus.INITIATED) {
+                throw new IllegalStateException("Payment for settlement ID "
+                        + settlementId + " has already been " + existingPayment.getStatus() + ".");
+            }
+            existingPayment.setScheduledDate(payment.getScheduledDate());
+            Payment updated = paymentRepository.save(existingPayment);
+            logAudit("Payment", updated.getPaymentId(), "PAYMENT_RESCHEDULED",
+                    "Payment #" + updated.getPaymentId() + " rescheduled for Claim #"
+                            + updated.getClaimId() + " (Settlement #" + settlementId
+                            + ") by " + getActor());
+            return updated;
         }
 
         // Resolve claimId from the Settlement table
@@ -49,7 +70,7 @@ public class PaymentService {
         payment.setStatus(PaymentStatus.INITIATED);
         Payment saved = paymentRepository.save(payment);
 
-        // Move claim to PAYMENT_SCHEDULED stage (step 3) and notify the holder
+        // Move claim to PAYMENT_SCHEDULED stage and notify the holder
         notifyClaimStatusUpdate(claimId, "PAYMENT_SCHEDULED");
 
         logAudit("Payment", saved.getPaymentId(), "PAYMENT_SCHEDULED",

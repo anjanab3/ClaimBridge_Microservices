@@ -1,5 +1,6 @@
 package com.cts.report.client;
 
+import com.cts.report.client.fallback.ClaimsServiceClientFallback;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
  * Feign client for claims-service internal reporting endpoints.
  * These endpoints require no JWT — safe for service-to-service calls.
  */
-@FeignClient(name = "claims-service", url = "${feign.client.config.claims-service.url}")
+@FeignClient(name = "claims-service", url = "${feign.client.config.claims-service.url}", fallback = ClaimsServiceClientFallback.class)
 public interface ClaimsServiceClient {
 
     // ── Claims ───────────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 package com.cts.claimbridge.client;
 
+import com.cts.claimbridge.client.fallback.PolicyServiceClientFallback;
 import com.cts.claimbridge.dto.PolicyDTO;
 import com.cts.claimbridge.dto.PolicyHolderDTO;
 
@@ -9,7 +10,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-@FeignClient(name = "policy")
+@FeignClient(name = "policy", fallback = PolicyServiceClientFallback.class)
 public interface PolicyServiceClient {
 
     @GetMapping("/api/policies/{policyId}")

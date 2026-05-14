@@ -1,4 +1,6 @@
 C:\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\client\ClaimsServiceClient.java
+C:\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\client\fallback\ClaimsServiceClientFallback.java
+C:\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\client\fallback\ReportingServiceClientFallback.java
 C:\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\client\ReportingServiceClient.java
 C:\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\config\FeignClientConfig.java
 C:\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\config\SecurityConfig.java
@@ -15,6 +17,7 @@ C:\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\repos
 C:\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\repository\SettlementRepository.java
 C:\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\security\JwtAuthFilter.java
 C:\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\service\JwtService.java
+C:\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\service\PaymentSchedulerService.java
 C:\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\service\PaymentService.java
 C:\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\service\SettlementService.java
 C:\ClaimBridge_Microservices\payment-service\src\main\java\com\cts\payment\util\PaymentStatus.java

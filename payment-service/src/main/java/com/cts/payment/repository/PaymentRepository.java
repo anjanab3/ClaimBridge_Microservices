@@ -5,6 +5,7 @@ import com.cts.payment.util.PaymentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,4 +21,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     Optional<Payment> findByPaymentIdAndStatus(Long paymentId, PaymentStatus status);
 
     List<Payment> findByStatus(PaymentStatus status);
+
+    // Find all INITIATED payments whose scheduled date has arrived or passed
+    List<Payment> findByStatusAndScheduledDateLessThanEqual(PaymentStatus status, LocalDate date);
 }

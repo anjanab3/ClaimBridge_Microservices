@@ -1,5 +1,6 @@
 package com.cts.report.client;
 
+import com.cts.report.client.fallback.PolicyServiceClientFallback;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -7,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 /**
  * Feign client for policy-service endpoints used by underwriter views.
  */
-@FeignClient(name = "policy-service", url = "${feign.client.config.policy-service.url}")
+@FeignClient(name = "policy-service", url = "${feign.client.config.policy-service.url}", fallback = PolicyServiceClientFallback.class)
 public interface PolicyServiceClient {
 
     @GetMapping("/api/policies")
